@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "vide",
+    "bindings/vyde/rs"
+]
+resolver = "2"
