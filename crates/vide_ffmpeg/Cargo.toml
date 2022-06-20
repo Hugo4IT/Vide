@@ -1,0 +1,9 @@
+[package]
+name = "vide_ffmpeg"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+vide_lib = { path = "../vide_lib", default-features = false }
+ac-ffmpeg = "0.17.4"

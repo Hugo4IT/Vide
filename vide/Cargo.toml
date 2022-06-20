@@ -3,8 +3,11 @@ name = "vide"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["ffmpeg"]
+ffmpeg = ["vide_ffmpeg"]
+
 
 [dependencies]
-env_logger = "0.9.0"
-wgpu = "0.12.0"
-log = "0.4.17"
+vide_ffmpeg = { path = "../crates/vide_ffmpeg", optional = true }
+vide_lib = { path = "../crates/vide_lib" }

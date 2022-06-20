@@ -1,6 +1,8 @@
 [workspace]
 members = [
     "vide",
-    "bindings/vyde/rs"
+    "crates/vide_lib",
+    "crates/vide_ffmpeg",
+    "examples/animation",
 ]
 resolver = "2"
