@@ -2,7 +2,7 @@ pub mod quick_export;
 
 use std::{fs::File, io::Write};
 
-use ac_ffmpeg::{codec::{video::{VideoEncoder, self, VideoFrame, VideoFrameMut, PixelFormat}, Encoder}, time::{TimeBase, Timestamp}, format::{muxer::{Muxer, OutputFormat}, io::IO}};
+use ac_ffmpeg::{codec::{video::{VideoEncoder, self, VideoFrameMut, PixelFormat}, Encoder}, time::{TimeBase, Timestamp}, format::{muxer::{Muxer, OutputFormat}, io::IO}};
 use vide_lib::io::{Import, Export};
 
 pub struct FFmpegImporter {
@@ -98,10 +98,16 @@ impl Export for FFmpegExporter {
         let encoder = self.encoder.as_mut().unwrap();
         let muxer = self.muxer.as_mut().unwrap();
 
-        let mut new_frame = VideoFrameMut::black(self.pixel_format.clone().unwrap(), self.resolution.0, self.resolution.1);
-        new_frame.planes_mut()[0].data_mut().write_all(&frame.chunks(4).flat_map(|p|[p[0], p[1], p[2]]).collect::<Vec<_>>()[..]).unwrap();
+        {
+            // Allocate frame
+            let mut new_frame = VideoFrameMut::black(self.pixel_format.clone().unwrap(), self.resolution.0, self.resolution.1);
+            // Copy texture (and remove 4th component of each pixel) to frame
+            new_frame.planes_mut()[0].data_mut().write_all(&frame.chunks(4).flat_map(|p|[p[0], p[1], p[2]]).collect::<Vec<_>>()[..]).unwrap();
+            // Add to encoder queue
+            encoder.push(new_frame.with_pts(timestamp).freeze()).unwrap();
+        }
 
-        encoder.push(new_frame.with_pts(timestamp).freeze()).unwrap();
+        // Await encoder and add to muxer queue
         while let Some(packet) = encoder.take().unwrap() {
             muxer.push(packet.with_stream_index(0)).unwrap();
         }

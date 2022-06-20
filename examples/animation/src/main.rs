@@ -21,7 +21,7 @@ fn main() {
 
     let mut video = Video::new(VideoSettings {
         fps: 60.0,
-        resolution: (1920, 1080),
+        resolution: (3840, 2160),
         duration: Duration::from_secs_f64(5.0),
     });
     video.root().push_clip(1.0, MyClip);

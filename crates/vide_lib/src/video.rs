@@ -1,4 +1,5 @@
 use core::time::Duration;
+use std::time::Instant;
 
 use crate::{render::{Renderer, Time}, sequence::{Sequence, Clip}, io::{Export, self}};
 
@@ -41,6 +42,9 @@ impl Video {
     }
 
     pub fn render(&mut self, mut exporter: impl Export) {
+        info!("Starting render...");
+        let start_time = Instant::now();
+
         exporter.begin(self.video_settings);
 
         let root_info = self.root_sequence.info();
@@ -52,7 +56,6 @@ impl Video {
             info!("Rendering frame {}...", frame);
 
             self.renderer.begin();
-
             self.root_sequence.render(Time {
                 video_frame: frame,
                 sequence_frame: frame,
@@ -66,7 +69,7 @@ impl Video {
             }, &mut self.renderer);
 
             info!("Copying buffers...");
-
+            
             let frame_data = self.renderer.end();
 
             info!("Encoding frame...");
@@ -77,5 +80,7 @@ impl Video {
         info!("Finalizing encoding...");
 
         exporter.end();
+
+        info!("Done! Rendering took {:0.05}s", (Instant::now() - start_time).as_secs_f32());
     }
 }
