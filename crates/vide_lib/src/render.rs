@@ -159,6 +159,7 @@ impl Renderer {
 
         Self {
             settings,
+            
             queue,
             device,
 

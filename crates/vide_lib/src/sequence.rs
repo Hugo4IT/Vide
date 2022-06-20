@@ -39,6 +39,7 @@ pub struct ClipInfo {
 }
 
 pub trait Clip {
+    fn init(&mut self, renderer: &mut Renderer);
     fn info(&self) -> ClipInfo;
     fn render(&self, time: Time, renderer: &mut Renderer);
 }
@@ -80,6 +81,12 @@ impl Sequence {
 }
 
 impl Clip for Sequence {
+    fn init(&mut self, renderer: &mut Renderer) {
+        for clip_holder in self.clips.iter_mut() {
+            clip_holder.clip.init(renderer);
+        }
+    }
+
     #[inline]
     fn info(&self) -> ClipInfo {
         ClipInfo {
