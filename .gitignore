@@ -15,3 +15,5 @@ out
 # Python
 __pycache__
 *.pyc
+
+output.mp4
