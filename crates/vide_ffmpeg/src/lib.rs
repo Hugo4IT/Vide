@@ -100,7 +100,7 @@ impl Export for FFmpegExporter {
 
         {
             // Allocate frame
-            let mut new_frame = VideoFrameMut::black(self.pixel_format.clone().unwrap(), self.resolution.0, self.resolution.1);
+            let mut new_frame = VideoFrameMut::black(self.pixel_format.unwrap(), self.resolution.0, self.resolution.1);
             // Copy texture (and remove 4th component of each pixel) to frame
             new_frame.planes_mut()[0].data_mut().write_all(&frame.chunks(4).flat_map(|p|[p[0], p[1], p[2]]).collect::<Vec<_>>()[..]).unwrap();
             // Add to encoder queue

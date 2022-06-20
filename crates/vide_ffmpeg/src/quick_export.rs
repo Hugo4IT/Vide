@@ -5,7 +5,7 @@ pub fn to(output_file: impl ToString) -> FFmpegExporter {
         .to_string()
         .split('.')
         .last()
-        .expect(&format!("Vide Quick Export couldn't detect the file extension for {}", output_file.to_string()))
+        .unwrap_or_else(|| panic!("Vide Quick Export couldn't detect the file extension for {}", output_file.to_string()))
         .to_string();
     let extension = extension.as_str();
 

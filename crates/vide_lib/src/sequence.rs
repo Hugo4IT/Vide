@@ -15,7 +15,7 @@ impl IntoFrame for i32 {
 }
 
 impl IntoFrame for u64 {
-    fn into_frame(self, fps: f64) -> u64 {
+    fn into_frame(self, _fps: f64) -> u64 {
         self
     }
 }
@@ -80,6 +80,7 @@ impl Sequence {
 }
 
 impl Clip for Sequence {
+    #[inline]
     fn info(&self) -> ClipInfo {
         ClipInfo {
             name: self.name.clone(),

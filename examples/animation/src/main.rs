@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use vide::{sequence::{Clip, ClipInfo}, render::{Time, Renderer}, video::{Video, VideoSettings}};
+use vide::{sequence::{Clip, ClipInfo}, render::{Time, Renderer}, video::{Video, VideoSettings}, rgb8};
 
 struct MyClip;
 impl Clip for MyClip {
@@ -11,7 +11,7 @@ impl Clip for MyClip {
         }
     }
 
-    fn render(&self, time: Time, renderer: &mut Renderer) {
+    fn render(&self, time: Time, _renderer: &mut Renderer) {
         println!("Rendering frame {} of My Epic Clip ({}/300)", time.clip_frame, time.video_frame)
     }
 }
@@ -21,8 +21,9 @@ fn main() {
 
     let mut video = Video::new(VideoSettings {
         fps: 60.0,
-        resolution: (3840, 2160),
+        resolution: (1920, 1080),
         duration: Duration::from_secs_f64(5.0),
+        background_color: rgb8!(0xDA, 0x00, 0x37),
     });
     video.root().push_clip(1.0, MyClip);
     video.render(vide::quick_export::to("output.mp4"));
