@@ -2,15 +2,9 @@ use std::time::Duration;
 
 use vide::{sequence::{Clip, ClipInfo}, render::{Time, Renderer}, video::{Video, VideoSettings}, rgb8, api::rect::Rect};
 
-#[derive(Default)]
-struct MyClip {
-    rect: Rect,
-}
-
+struct MyClip;
 impl Clip for MyClip {
-    fn init(&mut self, renderer: &mut Renderer) {
-        self.my_rect.color = rgb8!(0xDA, 0x00, 0x37);
-    }
+    fn init(&mut self, renderer: &mut Renderer) { }
 
     fn info(&self) -> ClipInfo {
         ClipInfo {
@@ -19,8 +13,8 @@ impl Clip for MyClip {
         }
     }
 
-    fn render(&self, time: Time, renderer: &mut Renderer) {
-        renderer.render(self.rect);
+    fn render(&mut self, time: Time, renderer: &mut Renderer) {
+        renderer.rect();
         println!("Rendering frame {} of My Epic Clip ({}/300)", time.clip_frame, time.video_frame)
     }
 }
@@ -32,6 +26,6 @@ fn main() {
         duration: Duration::from_secs_f64(5.0),
         ..Default::default()
     });
-    video.root().push_clip(1.0, MyClip::default());
+    video.root().push_clip(1.0, MyClip);
     video.render(vide::quick_export::to("output.mp4"));
 }

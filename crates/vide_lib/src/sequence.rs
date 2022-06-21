@@ -41,7 +41,7 @@ pub struct ClipInfo {
 pub trait Clip {
     fn init(&mut self, renderer: &mut Renderer);
     fn info(&self) -> ClipInfo;
-    fn render(&self, time: Time, renderer: &mut Renderer);
+    fn render(&mut self, time: Time, renderer: &mut Renderer);
 }
 
 struct ClipHolder {
@@ -95,9 +95,9 @@ impl Clip for Sequence {
         }
     }
 
-    fn render(&self, time: Time, renderer: &mut Renderer) {
+    fn render(&mut self, time: Time, renderer: &mut Renderer) {
         info!("Rendering subsequence {} (frame {})", self.name.as_ref().unwrap_or(&String::from("<anonymous>")), time.clip_frame);
-        for clip_holder in self.clips.iter() {
+        for clip_holder in self.clips.iter_mut() {
             let info = clip_holder.clip.info();
             if clip_holder.start_frame <= time.clip_frame && clip_holder.start_frame + (info.duration.as_secs_f64() * renderer.fps()) as u64 > time.clip_frame {
                 let clip_frame = time.clip_frame - clip_holder.start_frame;

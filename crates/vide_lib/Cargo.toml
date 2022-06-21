@@ -11,6 +11,7 @@ preview = ["winit"]
 
 [dependencies]
 winit = { version = "0.26.1", optional = true }
+bytemuck = "1.9.1"
 pollster = "0.2.5"
 wgpu = "0.12.0"
 webm = "1.0.2"

@@ -1,6 +1,6 @@
 use std::num::NonZeroU32;
 
-use crate::video::VideoSettings;
+use crate::{video::VideoSettings, api::{mesh::Mesh, rect::Rect}};
 
 /// Timing information needed for rendering
 #[derive(Default, Debug, Clone, Copy)]
@@ -40,9 +40,8 @@ impl Time {
     }
 }
 
-#[derive(Debug)]
-pub enum RenderEvent {
-    
+pub trait Render {
+    fn render(&self, renderer: &mut Renderer);
 }
 
 #[derive(Debug)]
@@ -52,8 +51,6 @@ pub struct Renderer {
     // WGPU Special
     queue: wgpu::Queue,
     device: wgpu::Device,
-    
-    events: Vec<RenderEvent>,
     
     // VRAM -> RAM transfer for exporting to file
     #[cfg(not(feature = "preview"))] out_texture: wgpu::Texture,
@@ -65,6 +62,8 @@ pub struct Renderer {
     // Window surface for preview
     #[cfg(feature = "preview")] surface: wgpu::Surface,
     #[cfg(feature = "preview")] config: wgpu::SurfaceConfiguration,
+
+    rect: Rect,
 }
 
 impl Renderer {
@@ -157,6 +156,8 @@ impl Renderer {
             config
         };
 
+        let rect = Rect::new(&device, config.clone());
+
         Self {
             settings,
             
@@ -169,10 +170,10 @@ impl Renderer {
             #[cfg(not(feature = "preview"))] padded_bytes_per_row,
             #[cfg(not(feature = "preview"))] out_buffer,
 
-            events: Vec::new(),
-
             #[cfg(feature = "preview")] surface,
             #[cfg(feature = "preview")] config,
+
+            rect,
         }
     }
 
@@ -181,9 +182,27 @@ impl Renderer {
         self.settings.fps
     }
 
+    #[inline]
+    pub fn wgpu_device(&self) -> &wgpu::Device {
+        &self.device
+    }
+
+    #[inline]
+    pub fn wgpu_config(&self) -> wgpu::SurfaceConfiguration {
+        self.config.clone()
+    }
+
 
     pub(crate) fn begin(&mut self) {
+        
+    }
 
+    pub fn rect(&self) {
+        self.rect.render(self);
+    }
+
+    pub fn render(&mut self, renderable: &mut impl Render) {
+        renderable.render(self);
     }
 
     pub(crate) fn end(&mut self) -> Option<Vec<u8>> {
@@ -197,7 +216,7 @@ impl Renderer {
             let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
             (output, view)
         };
-        
+
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
