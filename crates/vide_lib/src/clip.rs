@@ -1,15 +1,7 @@
 use core::time::Duration;
 use std::{ops::{Range, RangeBounds, Bound}, marker::PhantomData};
 
-use crate::{render::{Time, RenderEvent}, effect::{EffectData, RegisteredEffectData, EffectRegistrationPacket}, api::transform::Transform};
-
-#[rustfmt::skip]
-const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 0.5, 0.0,
-    0.0, 0.0, 0.5, 1.0,
-);
+use crate::{render::{Time, RenderEvent}, effect::{EffectData, RegisteredEffectData, EffectRegistrationPacket}, api::transform::{Transform, OPENGL_TO_WGPU_MATRIX}};
 
 pub trait IntoFrame {
     fn into_frame(self, fps: f64) -> u64;

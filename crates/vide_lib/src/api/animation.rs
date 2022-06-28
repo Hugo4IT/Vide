@@ -26,7 +26,7 @@ macro_rules! impl_interpolate {
     ($typ:ty) => {
         impl Interpolate for $typ {
             fn interpolate(a: Self, b: Self, t: f64) -> Self {
-                ((b - a) as f64 * t) as $typ
+                ((b - a) as f64 * t) as $typ + a
             }
         }
     };
@@ -37,15 +37,25 @@ pub type EasingFunction = fn(f64)->f64;
 /// `f(t)=t`
 pub const EASE_LINEAR:      EasingFunction = |t|t;
 /// `f(t)=t^2`
-pub const EASE_OUT_QUADRATIC:   EasingFunction = |t|t*t;
+pub const EASE_IN_QUADRATIC:   EasingFunction = |t|t*t;
 /// `f(t)=t^3`
-pub const EASE_OUT_CUBIC:       EasingFunction = |t|t*t*t;
+pub const EASE_IN_CUBIC:       EasingFunction = |t|t*t*t;
 /// `f(t)=t^4`
-pub const EASE_OUT_QUARTIC:     EasingFunction = |t|t*t*t*t;
+pub const EASE_IN_QUARTIC:     EasingFunction = |t|t*t*t*t;
 /// `f(t)=t^5`
-pub const EASE_OUT_QUINTIC:     EasingFunction = |t|t*t*t*t*t;
+pub const EASE_IN_QUINTIC:     EasingFunction = |t|t*t*t*t*t;
 /// `f(t)=t^10`
-pub const EASE_OUT_EXPONENTIAL: EasingFunction = |t|t*t*t*t*t*t;
+pub const EASE_IN_EXPONENTIAL: EasingFunction = |t|t*t*t*t*t*t;
+/// `f(t)=t^2`
+pub const EASE_OUT_QUADRATIC:   EasingFunction = |t|1.0-(1.0-t).powi(2);
+/// `f(t)=t^3`
+pub const EASE_OUT_CUBIC:       EasingFunction = |t|1.0-(1.0-t).powi(3);
+/// `f(t)=t^4`
+pub const EASE_OUT_QUARTIC:     EasingFunction = |t|1.0-(1.0-t).powi(4);
+/// `f(t)=t^5`
+pub const EASE_OUT_QUINTIC:     EasingFunction = |t|1.0-(1.0-t).powi(5);
+/// `f(t)=t^10`
+pub const EASE_OUT_EXPONENTIAL: EasingFunction = |t|1.0-(1.0-t).powi(10);
 /// Overshoots
 pub const EASE_IN_BACK:     EasingFunction = cubic_bezier!(0.69, -0.53, 0.06, 0.99);
 /// Overshoots
@@ -122,10 +132,10 @@ pub struct Keyframe<T: Interpolate> {
     pub frame: u64,
 }
 
-impl<T: Interpolate + Clone> Keyframe<T> {
+impl<T: Interpolate + Clone + std::fmt::Debug> Keyframe<T> {
     pub fn evaluate(&self, previous: Keyframe<T>, frame: u64) -> T {
-        let progress = frame as f64 / (self.frame - previous.frame) as f64;
-        T::interpolate(previous.state, self.state.clone(), self.easing.clone()(progress))
+        let progress = (frame - previous.frame) as f64 / (self.frame - previous.frame) as f64;
+        T::interpolate(previous.state, self.state.clone(), (self.easing)(progress))
     }
 }
 
@@ -134,7 +144,7 @@ pub struct AnimatableProperty<T: Interpolate + Clone> {
     keyframes: Vec<Keyframe<T>>,
 }
 
-impl<T: Interpolate + Clone> AnimatableProperty<T> {
+impl<T: Interpolate + Clone + std::fmt::Debug> AnimatableProperty<T> {
     pub fn new(initial: T) -> Self {
         Self {
             initial,
@@ -153,7 +163,7 @@ impl<T: Interpolate + Clone> AnimatableProperty<T> {
         }
 
         // When on first keyframe, interpolate with self.initial
-        if self.keyframes.len() == 1 {
+        if self.keyframes.len() >= 1 {
             let keyframe = self.keyframes.first().unwrap();
             if keyframe.frame >= frame {
                 return keyframe.evaluate(Keyframe {
@@ -186,7 +196,7 @@ pub struct AnimatablePropertyBuilder<T: Interpolate + Clone> {
     property: AnimatableProperty<T>,
 }
 
-impl<T: Interpolate + Clone> AnimatablePropertyBuilder<T> {
+impl<T: Interpolate + Clone + std::fmt::Debug> AnimatablePropertyBuilder<T> {
     pub fn new(initial: T) -> Self {
         Self {
             property: AnimatableProperty::new(initial),

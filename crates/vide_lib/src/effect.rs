@@ -23,8 +23,8 @@ use crate::render::{Renderer, RenderFunction};
                     Box::new(<$name as $crate::effect::Effect>::new(renderer))
                 }
 
-                fn _render<'a>(backend: &'a Box<dyn std::any::Any>, params: &Box<dyn std::any::Any>, pass: std::sync::MutexGuard<wgpu::RenderPass<'a>>, frame: u64) {
-                    $name::render(backend.as_ref().downcast_ref().unwrap(), params.as_ref().downcast_ref().unwrap(), pass, frame)
+                fn _render<'a>(backend: &'a Box<dyn std::any::Any>, params: &Box<dyn std::any::Any>, pass: std::sync::MutexGuard<wgpu::RenderPass<'a>>, queue: &wgpu::Queue, frame: u64) {
+                    $name::render(backend.as_ref().downcast_ref().unwrap(), params.as_ref().downcast_ref().unwrap(), pass, queue, frame)
                 }
             }
         }
@@ -49,7 +49,7 @@ pub trait RegisteredEffectData {
     unsafe fn is_registered() -> bool;
     unsafe fn get_id() -> usize;
     fn _new(renderer: &mut Renderer) -> Box<dyn Any>;
-    fn _render<'a>(backend: &'a Box<dyn Any>, params: &Box<dyn Any>, pass: MutexGuard<'_, wgpu::RenderPass<'a>>, frame: u64);
+    fn _render<'a>(backend: &'a Box<dyn Any>, params: &Box<dyn Any>, pass: MutexGuard<'_, wgpu::RenderPass<'a>>, queue: &wgpu::Queue, frame: u64);
 }
 
 pub struct EffectData {

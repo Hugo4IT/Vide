@@ -3,9 +3,9 @@ use std::{time::Duration, any::Any, sync::{Mutex, MutexGuard}};
 use log::info;
 use wgpu::util::DeviceExt;
 
-use crate::{api::video::VideoSettings, clip::IntoFrame, effect::EffectRegistrationPacket};
+use crate::{api::{video::VideoSettings, transform::OPENGL_TO_WGPU_MATRIX}, clip::IntoFrame, effect::EffectRegistrationPacket};
 
-pub(crate) type RenderFunction = for<'a> fn(&'a Box<dyn Any>, &Box<dyn Any>, MutexGuard<wgpu::RenderPass<'a>>, u64);
+pub(crate) type RenderFunction = for<'a> fn(&'a Box<dyn Any>, &Box<dyn Any>, MutexGuard<wgpu::RenderPass<'a>>, &wgpu::Queue, u64);
 
 /// Timing information needed for rendering
 #[derive(Default, Debug, Clone, Copy)]
@@ -183,7 +183,13 @@ impl Renderer {
             config
         };
 
-        let screen_matrix = cgmath::Matrix4::from_nonuniform_scale(2.0 / settings.resolution.0 as f32, 2.0 / settings.resolution.1 as f32, 1.0);
+        #[rustfmt::skip]
+        let screen_matrix = cgmath::Matrix4::new(
+            2.0 / settings.resolution.0 as f32, 0.0,                                0.0, 0.0,
+            0.0,                                2.0 / settings.resolution.1 as f32, 0.0, 0.0,
+            0.0,                                0.0,                                1.0, 0.0,
+            0.0,                                0.0,                                0.0, 1.0,
+        );
 
         let transform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Transform Buffer"),
@@ -335,7 +341,7 @@ impl Renderer {
                         self.queue.write_buffer(&self.transform_buffer, 0, bytemuck::cast_slice(&[<[[f32; 4]; 4]>::from(transform.into())]));
                     }
                     RenderEvent::Effect { id, params, frame } => {
-                        self.effect_functions[id].clone().unwrap()(self.effects[id].as_ref().unwrap(), params, pass_ref.lock().unwrap(), frame);
+                        self.effect_functions[id].clone().unwrap()(self.effects[id].as_ref().unwrap(), params, pass_ref.lock().unwrap(), &self.queue, frame);
                     },
                 }
             }

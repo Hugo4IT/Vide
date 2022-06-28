@@ -1,10 +1,14 @@
-use std::sync::MutexGuard;
+use std::{sync::MutexGuard, marker::PhantomData};
 
 use wgpu::util::DeviceExt;
 
 use crate::render::Renderer;
 
 use super::shader::Shader;
+
+pub trait VertexAttributeDescriptor {
+    fn desc<'a>() -> wgpu::VertexBufferLayout<'a>;
+}
 
 #[repr(C)]
 #[derive(Default, Debug, Clone, Copy)]
@@ -16,8 +20,8 @@ pub struct Vertex {
 unsafe impl bytemuck::Pod for Vertex {}
 unsafe impl bytemuck::Zeroable for Vertex {}
 
-impl Vertex {
-    const fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+impl VertexAttributeDescriptor for Vertex {
+    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
             array_stride: core::mem::size_of::<Vertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
@@ -38,7 +42,7 @@ impl Vertex {
 }
 
 #[derive(Debug)]
-pub struct Mesh {
+pub struct Mesh<T: VertexAttributeDescriptor> {
     vertices: Vec<Vertex>,
     len_vertices: u32,
     indices: Option<Vec<u16>>,
@@ -47,10 +51,13 @@ pub struct Mesh {
 
     vertex_buffer: wgpu::Buffer,
     index_buffer: Option<wgpu::Buffer>,
+    instance_buffer: wgpu::Buffer,
     pipeline: wgpu::RenderPipeline,
+
+    _phantom: PhantomData<T>,
 }
 
-impl Mesh {
+impl<T: VertexAttributeDescriptor + bytemuck::Pod + bytemuck::Zeroable> Mesh<T> {
     pub fn new(renderer: &mut Renderer, vertices: Vec<Vertex>, indices: Option<Vec<u16>>, shader: Shader) -> Self {
         let device = renderer.wgpu_device();
         let config = renderer.wgpu_config();
@@ -75,6 +82,13 @@ impl Mesh {
             (None, 0)
         };
 
+        let instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Mesh Instance Buffer"),
+            size: std::mem::size_of::<T>() as wgpu::BufferAddress,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
             bind_group_layouts: &[
@@ -91,6 +105,7 @@ impl Mesh {
                 entry_point: "vs_main",
                 buffers: &[
                     Vertex::desc(),
+                    T::desc(),
                 ],
             },
             fragment: Some(wgpu::FragmentState {
@@ -98,7 +113,7 @@ impl Mesh {
                 entry_point: "fs_main",
                 targets: &[wgpu::ColorTargetState {
                     format: config.format,
-                    blend: Some(wgpu::BlendState::REPLACE),
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                     write_mask: wgpu::ColorWrites::ALL,
                 }],
             }),
@@ -128,19 +143,25 @@ impl Mesh {
             shader,
             vertex_buffer,
             index_buffer,
+            instance_buffer,
             pipeline,
+            _phantom: Default::default(),
         }
     }
 
-    pub fn render<'a>(&'a self, mut render_pass: MutexGuard<wgpu::RenderPass<'a>>) {
+    pub fn render<'a>(&'a self, mut render_pass: MutexGuard<wgpu::RenderPass<'a>>, queue: &wgpu::Queue, data: T) {
+        queue.write_buffer(&self.instance_buffer, 0, bytemuck::cast_slice(&[data]));
+
         if let Some(index_buffer) = self.index_buffer.as_ref() {
             render_pass.set_pipeline(&self.pipeline);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
             render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
             render_pass.draw_indexed(0..self.len_indices, 0, 0..1);
         } else {
             render_pass.set_pipeline(&self.pipeline);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
             render_pass.draw(0..self.len_vertices, 0..1);
         }
     }

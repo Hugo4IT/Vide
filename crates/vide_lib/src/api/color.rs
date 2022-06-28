@@ -38,11 +38,32 @@ impl Interpolate for Color {
     }
 }
 
+impl From<Color> for [f32; 4] {
+    fn from(col: Color) -> Self {
+        [col.r as f32, col.g as f32, col.b as f32, col.a as f32]
+    }
+}
+
+impl From<Color> for [f64; 4] {
+    fn from(col: Color) -> Self {
+        [col.r, col.g, col.b, col.a]
+    }
+}
+
 #[macro_export] macro_rules! rgb8 {
     ($r:expr, $g:expr, $b:expr) => {
         {
             use $crate::api::color::Color;
             Color::new($r as f64 / 255.0, $g as f64 / 255.0, $b as f64 / 255.0, 1.0)
+        }
+    };
+}
+
+#[macro_export] macro_rules! rgba8 {
+    ($r:expr, $g:expr, $b:expr, $a:expr) => {
+        {
+            use $crate::api::color::Color;
+            Color::new($r as f64 / 255.0, $g as f64 / 255.0, $b as f64 / 255.0, $a as f64 / 255.0)
         }
     };
 }
