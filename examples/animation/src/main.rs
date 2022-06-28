@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use vide::{video::{Video, VideoSettings}, api::rect::Rect, keyframes, rgb8};
+use vide::{api::video::{Video, VideoSettings}, api::rect::Rect, keyframes, rgb8};
 
 fn main() {
     env_logger::init();
@@ -10,11 +10,12 @@ fn main() {
         ..Default::default()
     });
 
-    video.root().new_clip(1.0..3.0)
+    let root = video.root();
+    let mut clip = root.new_clip(1.0..3.0)
         .effect(Rect {                                          // Solid rectangle
             position: keyframes!(
-                initial (960.0, 1080.0),                        // Frame 0  = (960.0, 1080.0)
-                15 => OUT_CUBIC => (960.0, 540.0),              // Frame 15 = (960.0, 540.0)
+                initial (0.0, 800.0),                           // Frame 0  = (0.0, 800.0)
+                15 => OUT_CUBIC => (0.0, 0.0),                  // Frame 15 = (0.0, 0.0) aka. Center
                                                                 // Transition from frame 0 to 15 handled with EASE_OUT_CUBIC
             ),
             size: keyframes!(

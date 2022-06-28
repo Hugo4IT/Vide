@@ -2,6 +2,8 @@ use std::sync::MutexGuard;
 
 use wgpu::util::DeviceExt;
 
+use crate::render::Renderer;
+
 use super::shader::Shader;
 
 #[repr(C)]
@@ -49,7 +51,10 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    pub fn new(device: &wgpu::Device, config: wgpu::SurfaceConfiguration, vertices: Vec<Vertex>, indices: Option<Vec<u16>>, shader: Shader) -> Self {
+    pub fn new(renderer: &mut Renderer, vertices: Vec<Vertex>, indices: Option<Vec<u16>>, shader: Shader) -> Self {
+        let device = renderer.wgpu_device();
+        let config = renderer.wgpu_config();
+
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
             contents: bytemuck::cast_slice(&vertices[..]),
@@ -72,7 +77,9 @@ impl Mesh {
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
-            bind_group_layouts: &[],
+            bind_group_layouts: &[
+                renderer.wgpu_transform_bind_group_layout(),
+            ],
             push_constant_ranges: &[],
         });
 

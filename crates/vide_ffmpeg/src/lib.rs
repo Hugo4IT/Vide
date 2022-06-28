@@ -70,7 +70,7 @@ impl FFmpegExporter { // TODO: Support multiple encoders and stuff
 }
 
 impl Export for FFmpegExporter {
-    fn begin(&mut self, settings: vide_lib::video::VideoSettings) {
+    fn begin(&mut self, settings: vide_lib::api::video::VideoSettings) {
         let time_base = TimeBase::new(1, 1_000_000);
         let pixel_format = video::frame::get_pixel_format("rgb24");
         

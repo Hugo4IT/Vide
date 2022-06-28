@@ -104,7 +104,7 @@ impl<'a> Video<'a> {
         use crate::clip::IntoFrame;
 
         info!("Starting render...");
-        let start_time = Instant::now();
+        let start_time = std::time::Instant::now();
 
         exporter.begin(self.settings);
 
@@ -117,7 +117,7 @@ impl<'a> Video<'a> {
 
         exporter.end();
 
-        info!("Done! Rendering took {:0.05}s", (Instant::now() - start_time).as_secs_f32());
+        info!("Done! Rendering took {:0.05}s", (std::time::Instant::now() - start_time).as_secs_f32());
     }
 }
 
@@ -140,5 +140,6 @@ fn render_frame(frame: u64, renderer: &mut Renderer, clip: &mut Clip<'_>) -> Opt
             clip_progress: progress,
         },
         renderer.last_frame(),
+        renderer.screen_matrix,
     ))
 }

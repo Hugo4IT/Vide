@@ -1,8 +1,9 @@
 use std::{time::Duration, any::Any, sync::{Mutex, MutexGuard}};
 
 use log::info;
+use wgpu::util::DeviceExt;
 
-use crate::{video::VideoSettings, clip::IntoFrame, effect::EffectRegistrationPacket};
+use crate::{api::video::VideoSettings, clip::IntoFrame, effect::EffectRegistrationPacket};
 
 pub(crate) type RenderFunction = for<'a> fn(&'a Box<dyn Any>, &Box<dyn Any>, MutexGuard<wgpu::RenderPass<'a>>, u64);
 
@@ -45,6 +46,12 @@ impl Time {
 }
 
 pub enum RenderEvent<'a> {
+    WriteBuffer {
+        buffer: &'a wgpu::Buffer,
+        offset: wgpu::BufferAddress,
+        data: &'a [u8],
+    },
+    SetTransform(cgmath::Matrix4<f32>),
     Effect { // Render effect
         id: usize,
         params: &'a Box<dyn Any>,
@@ -58,10 +65,12 @@ pub trait Render {
 
 pub struct Renderer {
     pub settings: VideoSettings,
+    pub screen_matrix: cgmath::Matrix4<f32>,
 
     // WGPU Special
     queue: wgpu::Queue,
     device: wgpu::Device,
+    config: wgpu::SurfaceConfiguration,
     
     // VRAM -> RAM transfer for exporting to file
     #[cfg(not(feature = "preview"))] out_texture: wgpu::Texture,
@@ -72,12 +81,15 @@ pub struct Renderer {
 
     // Window surface for preview
     #[cfg(feature = "preview")] surface: wgpu::Surface,
-    #[cfg(feature = "preview")] config: wgpu::SurfaceConfiguration,
 
     /// Holds function pointers to all `render()` functions of registered effects
     effect_functions: Vec<Option<RenderFunction>>,
     /// Holds `self` for the `render()` functions described in [`Renderer::effect_functions`]
     effects: Vec<Option<Box<dyn Any>>>,
+
+    transform_buffer: wgpu::Buffer,
+    transform_bind_group_layout: wgpu::BindGroupLayout,
+    transform_bind_group: wgpu::BindGroup,
 }
 
 impl Renderer {
@@ -155,26 +167,64 @@ impl Renderer {
             )
         };
 
-        #[cfg(feature = "preview")]
         let config = {
             let config = wgpu::SurfaceConfiguration {
                 usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-                format: surface.get_preferred_format(&adapter).unwrap(),
+                #[cfg(feature = "preview")] format: surface.get_preferred_format(&adapter).unwrap(),
+                #[cfg(not(feature = "preview"))] format: wgpu::TextureFormat::Rgba8UnormSrgb,
                 width: settings.resolution.0,
                 height: settings.resolution.1,
-                present_mode: wgpu::PresentMode::Fifo,
+                #[cfg(feature = "preview")] present_mode: wgpu::PresentMode::Fifo,
+                #[cfg(not(feature = "preview"))] present_mode: wgpu::PresentMode::Immediate,
             };
 
-            surface.configure(&device, &config);
+            #[cfg(feature = "preview")] surface.configure(&device, &config);
 
             config
         };
 
+        let screen_matrix = cgmath::Matrix4::from_nonuniform_scale(2.0 / settings.resolution.0 as f32, 2.0 / settings.resolution.1 as f32, 1.0);
+
+        let transform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Transform Buffer"),
+            contents: bytemuck::cast_slice(&[<[[f32; 4]; 4]>::from(screen_matrix.into())]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let transform_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("Transform Bind Group Layout"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }
+            ],
+        });
+
+        let transform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Transform Bind Group"),
+            layout: &transform_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: transform_buffer.as_entire_binding(),
+                }
+            ],
+        });
+
         Self {
             settings,
+            screen_matrix,
             
             queue,
             device,
+            config,
 
             #[cfg(not(feature = "preview"))] out_texture,
             #[cfg(not(feature = "preview"))] out_texture_view,
@@ -183,10 +233,13 @@ impl Renderer {
             #[cfg(not(feature = "preview"))] out_buffer,
 
             #[cfg(feature = "preview")] surface,
-            #[cfg(feature = "preview")] config,
 
             effect_functions: Vec::new(),
             effects: Vec::new(),
+
+            transform_buffer,
+            transform_bind_group_layout,
+            transform_bind_group,
         }
     }
 
@@ -211,9 +264,13 @@ impl Renderer {
     }
 
     #[inline]
-    #[cfg(feature = "preview")]
     pub fn wgpu_config(&self) -> wgpu::SurfaceConfiguration {
         self.config.clone()
+    }
+
+    #[inline]
+    pub fn wgpu_transform_bind_group_layout(&self) -> &wgpu::BindGroupLayout {
+        &self.transform_bind_group_layout
     }
 
     pub(crate) fn register_effects(&mut self, packets: Vec<EffectRegistrationPacket>) {
@@ -266,9 +323,17 @@ impl Renderer {
                 depth_stencil_attachment: None,
             });
 
+            pass.set_bind_group(0, &self.transform_bind_group, &[]);
+
             let pass_ref = Mutex::new(pass);
             for event in events {
                 match event {
+                    RenderEvent::WriteBuffer { buffer, offset, data } => {
+                        self.queue.write_buffer(buffer, 0, data);
+                    }
+                    RenderEvent::SetTransform(transform) => {
+                        self.queue.write_buffer(&self.transform_buffer, 0, bytemuck::cast_slice(&[<[[f32; 4]; 4]>::from(transform.into())]));
+                    }
                     RenderEvent::Effect { id, params, frame } => {
                         self.effect_functions[id].clone().unwrap()(self.effects[id].as_ref().unwrap(), params, pass_ref.lock().unwrap(), frame);
                     },
@@ -288,8 +353,8 @@ impl Renderer {
                 buffer: &self.out_buffer,
                 layout: wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: NonZeroU32::new(self.padded_bytes_per_row),
-                    rows_per_image: NonZeroU32::new(self.settings.resolution.1),
+                    bytes_per_row: std::num::NonZeroU32::new(self.padded_bytes_per_row),
+                    rows_per_image: std::num::NonZeroU32::new(self.settings.resolution.1),
                 },
             },
             wgpu::Extent3d {

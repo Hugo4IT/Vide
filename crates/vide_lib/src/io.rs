@@ -1,4 +1,4 @@
-use crate::video::VideoSettings;
+use crate::api::video::VideoSettings;
 
 pub trait Import {
     fn supported_import_extensions() -> Vec<String>;

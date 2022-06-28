@@ -1,7 +1,15 @@
 use core::time::Duration;
 use std::{ops::{Range, RangeBounds, Bound}, marker::PhantomData};
 
-use crate::{render::{Time, RenderEvent}, effect::{EffectData, RegisteredEffectData, EffectRegistrationPacket}};
+use crate::{render::{Time, RenderEvent}, effect::{EffectData, RegisteredEffectData, EffectRegistrationPacket}, api::transform::Transform};
+
+#[rustfmt::skip]
+const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
+    1.0, 0.0, 0.0, 0.0,
+    0.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 0.5, 0.0,
+    0.0, 0.0, 0.5, 1.0,
+);
 
 pub trait IntoFrame {
     fn into_frame(self, fps: f64) -> u64;
@@ -33,13 +41,17 @@ impl IntoFrame for f64 {
 
 pub struct Clip<'a> {
     children: Vec<Clip<'a>>,
+    transform: Transform,
     effects: Vec<EffectData>,
+    /// Effect emit an EffectRegistrationPacket when their backend hasn't been
+    /// initialized yet.
     effect_registration_packets: Option<Vec<EffectRegistrationPacket>>,
     /// When `None`, the clip will play from frame 0
     start: Option<u64>,
     /// When `None`, the clip will play until the end of its parent sequence
     end: Option<u64>,
     fps: f64,
+    /// Prevent unused lifetime error
     _phantom: PhantomData<&'a ()>,
 }
 
@@ -47,6 +59,7 @@ impl<'a> Clip<'a> {
     pub(crate) fn empty(duration: Duration, fps: f64) -> Self {
         Self {
             children: Vec::new(),
+            transform: Transform::default(),
             effects: Vec::new(),
             effect_registration_packets: Some(Vec::new()),
             start: Some(0),
@@ -76,9 +89,15 @@ impl<'a> Clip<'a> {
         (frame as f64 - start as f64) / (end - start) as f64
     }
 
-    pub fn new_clip<'b>(&'b mut self, time_range: Range<impl IntoFrame + Copy>) -> &'b mut Clip<'a> {
-        self.children.push(Clip {
+    pub fn translate(&mut self, transform: impl cgmath::Transform3) -> &mut Clip<'a> {
+        
+        self
+    }
+
+    pub fn new_clip(&mut self, time_range: Range<impl IntoFrame + Copy>) -> &mut Clip<'a> {
+        self.children.push(Clip::<'a> {
             children: Vec::new(),
+            transform: Transform::default(),
             effects: Vec::new(),
             effect_registration_packets: Some(Vec::new()),
             start: match time_range.start_bound() {
@@ -98,7 +117,7 @@ impl<'a> Clip<'a> {
         self.children.last_mut().unwrap()
     }
 
-    pub fn effect<'b, E: 'static + RegisteredEffectData>(&'b mut self, effect: E) -> &'b mut Clip<'a> {
+    pub fn effect<E: 'static + RegisteredEffectData>(&mut self, effect: E) -> &mut Clip<'a> {
         if unsafe { !E::is_registered() } {
             self.effect_registration_packets.as_mut().unwrap().push(EffectRegistrationPacket {
                 id: unsafe { E::get_id() },
@@ -121,7 +140,8 @@ impl<'a> Clip<'a> {
         packets
     }
 
-    pub(crate) fn render(&mut self, time: Time, clip_end: u64) -> Vec<RenderEvent> {
+    pub(crate) fn render(&mut self, time: Time, clip_end: u64, parent_matrix: cgmath::Matrix4<f32>) -> Vec<RenderEvent> {
+        let matrix = self.transform.matrix(parent_matrix);
         let mut events = Vec::new();
 
         for clip in self.children.iter_mut() {
@@ -129,10 +149,11 @@ impl<'a> Clip<'a> {
                 let clip_frame = time.clip_frame - clip.start();
                 let clip_time = time.clip_time - clip.start() as f64 / self.fps;
                 let clip_progress = clip.progress(clip_frame, clip_end);
-                events.extend(clip.render(time.derive_clip(clip_frame, clip_time, clip_progress), clip.end(clip_end)));
+                events.extend(clip.render(time.derive_clip(clip_frame, clip_time, clip_progress), clip.end(clip_end), matrix));
             }
         }
 
+        events.push(RenderEvent::SetTransform(matrix * OPENGL_TO_WGPU_MATRIX));
         events.extend(self.effects.iter().map(|effect| RenderEvent::Effect {
             id: effect.id,
             params: &effect.params,
