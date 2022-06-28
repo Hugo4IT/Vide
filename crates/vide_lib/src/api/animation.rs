@@ -158,12 +158,10 @@ impl<T: Interpolate + Clone + std::fmt::Debug> AnimatableProperty<T> {
 
     pub fn evaluate(&self, frame: u64) -> T {
         // Fallback when no keyframes
-        if self.keyframes.len() == 0 {
+        if self.keyframes.is_empty() {
             return self.initial.clone()
-        }
-
-        // When on first keyframe, interpolate with self.initial
-        if self.keyframes.len() >= 1 {
+        } else {
+            // When on first keyframe, interpolate with self.initial
             let keyframe = self.keyframes.first().unwrap();
             if keyframe.frame >= frame {
                 return keyframe.evaluate(Keyframe {

@@ -3,7 +3,7 @@ use std::{time::Duration, any::Any, sync::{Mutex, MutexGuard}};
 use log::info;
 use wgpu::util::DeviceExt;
 
-use crate::{api::{video::VideoSettings, transform::OPENGL_TO_WGPU_MATRIX}, clip::IntoFrame, effect::EffectRegistrationPacket};
+use crate::{api::video::VideoSettings, clip::IntoFrame, effect::EffectRegistrationPacket};
 
 pub(crate) type RenderFunction = for<'a> fn(&'a Box<dyn Any>, &Box<dyn Any>, MutexGuard<wgpu::RenderPass<'a>>, &wgpu::Queue, u64);
 
@@ -193,7 +193,7 @@ impl Renderer {
 
         let transform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Transform Buffer"),
-            contents: bytemuck::cast_slice(&[<[[f32; 4]; 4]>::from(screen_matrix.into())]),
+            contents: bytemuck::cast_slice(&[Into::<[[f32; 4]; 4]>::into(screen_matrix)]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
@@ -292,7 +292,7 @@ impl Renderer {
 
             if self.effect_functions[packet.id].is_none() {
                 self.effect_functions[packet.id] = Some(packet.render_function);
-                self.effects[packet.id] = Some(packet.init_function.clone()(self));
+                self.effects[packet.id] = Some((packet.init_function)(self));
             }
         }
     }
@@ -335,13 +335,13 @@ impl Renderer {
             for event in events {
                 match event {
                     RenderEvent::WriteBuffer { buffer, offset, data } => {
-                        self.queue.write_buffer(buffer, 0, data);
+                        self.queue.write_buffer(buffer, offset, data);
                     }
                     RenderEvent::SetTransform(transform) => {
-                        self.queue.write_buffer(&self.transform_buffer, 0, bytemuck::cast_slice(&[<[[f32; 4]; 4]>::from(transform.into())]));
+                        self.queue.write_buffer(&self.transform_buffer, 0, bytemuck::cast_slice(&[Into::<[[f32; 4]; 4]>::into(transform)]));
                     }
                     RenderEvent::Effect { id, params, frame } => {
-                        self.effect_functions[id].clone().unwrap()(self.effects[id].as_ref().unwrap(), params, pass_ref.lock().unwrap(), &self.queue, frame);
+                        self.effect_functions[id].unwrap()(self.effects[id].as_ref().unwrap(), params, pass_ref.lock().unwrap(), &self.queue, frame);
                     },
                 }
             }

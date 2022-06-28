@@ -11,7 +11,7 @@ fn main() {
     });
 
     let root = video.root();
-    let mut clip = root.new_clip(1.0..5.0)
+    root.new_clip(1.0..5.0)
         .effect(Rect {                                                  // Solid rectangle
             position: keyframes!(
                 initial (0.0, -150.0),                                  // Frame 0  = (0.0, -800.0)
