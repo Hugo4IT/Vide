@@ -1,3 +1,7 @@
+use crate::clip::IntoFrame;
+
+use self::ease::{EasingFunction, EASE_LINEAR};
+
 #[macro_export] macro_rules! lerp {
     ($start:expr, $end:expr, $progress:expr) => {
         ((($end) - ($start)) * ($progress) + ($start))
@@ -12,16 +16,6 @@
     };
 }
 
-#[macro_export] macro_rules! keyframes {
-    (initial $initial:expr, $($at:expr => $ease:ident => $value:expr),*$(,)?) => {
-        $crate::paste::paste! {
-            $crate::api::animation::AnimatablePropertyBuilder::new($initial)
-                $(.keyframe($crate::api::animation::Keyframe { frame: $at, easing: $crate::api::animation::[<EASE_ $ease>], state: $value }))*
-                .build()
-        }
-    };
-}
-
 macro_rules! impl_interpolate {
     ($typ:ty) => {
         impl Interpolate for $typ {
@@ -32,36 +26,38 @@ macro_rules! impl_interpolate {
     };
 }
 
-pub type EasingFunction = fn(f64)->f64;
-
-/// `f(t)=t`
-pub const EASE_LINEAR:      EasingFunction = |t|t;
-/// `f(t)=t^2`
-pub const EASE_IN_QUADRATIC:   EasingFunction = |t|t*t;
-/// `f(t)=t^3`
-pub const EASE_IN_CUBIC:       EasingFunction = |t|t*t*t;
-/// `f(t)=t^4`
-pub const EASE_IN_QUARTIC:     EasingFunction = |t|t*t*t*t;
-/// `f(t)=t^5`
-pub const EASE_IN_QUINTIC:     EasingFunction = |t|t*t*t*t*t;
-/// `f(t)=t^10`
-pub const EASE_IN_EXPONENTIAL: EasingFunction = |t|t*t*t*t*t*t;
-/// `f(t)=t^2`
-pub const EASE_OUT_QUADRATIC:   EasingFunction = |t|1.0-(1.0-t).powi(2);
-/// `f(t)=t^3`
-pub const EASE_OUT_CUBIC:       EasingFunction = |t|1.0-(1.0-t).powi(3);
-/// `f(t)=t^4`
-pub const EASE_OUT_QUARTIC:     EasingFunction = |t|1.0-(1.0-t).powi(4);
-/// `f(t)=t^5`
-pub const EASE_OUT_QUINTIC:     EasingFunction = |t|1.0-(1.0-t).powi(5);
-/// `f(t)=t^10`
-pub const EASE_OUT_EXPONENTIAL: EasingFunction = |t|1.0-(1.0-t).powi(10);
-/// Overshoots
-pub const EASE_IN_BACK:     EasingFunction = cubic_bezier!(0.69, -0.53, 0.06, 0.99);
-/// Overshoots
-pub const EASE_OUT_BACK:    EasingFunction = cubic_bezier!(0.42, 1.5, 0.35, 1.0);
-/// Overshoots
-pub const EASE_IN_OUT_BACK: EasingFunction = cubic_bezier!(0.84, -0.43, 0.11, 1.29);
+pub mod ease {
+    pub type EasingFunction = fn(f64)->f64;
+    
+    /// `f(t)=t`
+    pub const EASE_LINEAR:          EasingFunction = |t|t;
+    /// `f(t)=t^2`
+    pub const EASE_IN_QUADRATIC:    EasingFunction = |t|t*t;
+    /// `f(t)=t^3`
+    pub const EASE_IN_CUBIC:        EasingFunction = |t|t*t*t;
+    /// `f(t)=t^4`
+    pub const EASE_IN_QUARTIC:      EasingFunction = |t|t*t*t*t;
+    /// `f(t)=t^5`
+    pub const EASE_IN_QUINTIC:      EasingFunction = |t|t*t*t*t*t;
+    /// `f(t)=t^10`
+    pub const EASE_IN_EXPONENTIAL:  EasingFunction = |t|t*t*t*t*t*t;
+    /// `f(t)=t^2`
+    pub const EASE_OUT_QUADRATIC:   EasingFunction = |t|1.0-(1.0-t).powi(2);
+    /// `f(t)=t^3`
+    pub const EASE_OUT_CUBIC:       EasingFunction = |t|1.0-(1.0-t).powi(3);
+    /// `f(t)=t^4`
+    pub const EASE_OUT_QUARTIC:     EasingFunction = |t|1.0-(1.0-t).powi(4);
+    /// `f(t)=t^5`
+    pub const EASE_OUT_QUINTIC:     EasingFunction = |t|1.0-(1.0-t).powi(5);
+    /// `f(t)=t^10`
+    pub const EASE_OUT_EXPONENTIAL: EasingFunction = |t|1.0-(1.0-t).powi(10);
+    /// Overshoots
+    pub const EASE_IN_BACK:         EasingFunction = cubic_bezier!(0.69, -0.53, 0.06, 0.99);
+    /// Overshoots
+    pub const EASE_OUT_BACK:        EasingFunction = cubic_bezier!(0.42, 1.5, 0.35, 1.0);
+    /// Overshoots
+    pub const EASE_IN_OUT_BACK:     EasingFunction = cubic_bezier!(0.84, -0.43, 0.11, 1.29);
+}
 
 pub trait Interpolate {
     fn interpolate(a: Self, b: Self, t: f64) -> Self;
@@ -139,16 +135,16 @@ impl<T: Interpolate + Clone + std::fmt::Debug> Keyframe<T> {
     }
 }
 
-pub struct AnimatableProperty<T: Interpolate + Clone> {
+pub struct AnimatedProperty<T: Interpolate + Clone> {
     initial: T,
     keyframes: Vec<Keyframe<T>>,
 }
 
-impl<T: Interpolate + Clone + std::fmt::Debug> AnimatableProperty<T> {
-    pub fn new(initial: T) -> Self {
+impl<T: Interpolate + Clone + std::fmt::Debug> AnimatedProperty<T> {
+    pub fn new(initial: T, keyframes: Vec<Keyframe<T>>) -> Self {
         Self {
             initial,
-            keyframes: Vec::new(),
+            keyframes,
         }
     }
 
@@ -190,23 +186,52 @@ impl<T: Interpolate + Clone + std::fmt::Debug> AnimatableProperty<T> {
     }
 }
 
-pub struct AnimatablePropertyBuilder<T: Interpolate + Clone> {
-    property: AnimatableProperty<T>,
+pub struct AnimatedPropertyBuilder<T: Interpolate + Clone> {
+    initial: Option<T>,
+    keyframes: Vec<Keyframe<T>>,
+    fps: f64,
 }
 
-impl<T: Interpolate + Clone + std::fmt::Debug> AnimatablePropertyBuilder<T> {
-    pub fn new(initial: T) -> Self {
+impl<T: Interpolate + Clone + std::fmt::Debug> AnimatedPropertyBuilder<T> {
+    pub fn new(fps: f64) -> Self {
         Self {
-            property: AnimatableProperty::new(initial),
+            initial: None,
+            keyframes: Vec::new(),
+            fps,
         }
     }
 
-    pub fn keyframe(mut self, keyframe: Keyframe<T>) -> Self {
-        self.property.push_keyframe(keyframe);
+    pub fn keyframe(self, at: impl IntoFrame, easing: EasingFunction, state: T) -> Self {
+        let frame = at.into_frame(self.fps);
+        self.push_keyframe(Keyframe { frame, easing, state })
+    }
+
+    pub fn push_keyframe(mut self, keyframe: Keyframe<T>) -> Self {
+        self.keyframes.push(keyframe);
         self
     }
 
-    pub fn build(self) -> AnimatableProperty<T> {
-        self.property
+    pub fn hold(self, time: impl IntoFrame) -> Self {
+        let frame = time.into_frame(self.fps);
+        let initial = self.initial.as_ref().unwrap();
+        let keyframe = if let Some(last) = self.keyframes.last().map(|x| x.clone()) {
+            Keyframe {
+                state: last.state.clone(),
+                easing: EASE_LINEAR,
+                frame: last.frame + frame,
+            }
+        } else {
+            Keyframe {
+                state: initial.clone(),
+                easing: EASE_LINEAR,
+                frame,
+            }
+        };
+
+        self.push_keyframe(keyframe)
+    }
+
+    pub fn build(self) -> AnimatedProperty<T> {
+        AnimatedProperty::new(self.initial.unwrap(), self.keyframes)
     }
 }

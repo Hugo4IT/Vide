@@ -2,14 +2,14 @@ use std::sync::MutexGuard;
 
 use crate::{register_effect, effect::Effect};
 
-use super::{mesh::{Mesh, Vertex, VertexAttributeDescriptor}, shader::Shader, color::Color, animation::AnimatableProperty, transform::OPENGL_TO_WGPU_MATRIX};
+use super::{mesh::{Mesh, Vertex, VertexAttributeDescriptor}, shader::Shader, color::Color, animation::AnimatedProperty, transform::OPENGL_TO_WGPU_MATRIX};
 
 register_effect!(RectBackend, Rect);
 
 pub struct Rect {
-    pub position: AnimatableProperty<(f32, f32)>,
-    pub size: AnimatableProperty<(f32, f32)>,
-    pub color: AnimatableProperty<Color>,
+    pub position: AnimatedProperty<(f32, f32)>,
+    pub size: AnimatedProperty<(f32, f32)>,
+    pub color: AnimatedProperty<Color>,
 }
 
 #[repr(C)]
