@@ -1,6 +1,10 @@
-use std::num::NonZeroU32;
+use std::{time::Duration, any::Any, sync::{Mutex, MutexGuard}};
 
-use crate::{video::VideoSettings, api::{mesh::Mesh, rect::Rect}};
+use log::info;
+
+use crate::{video::VideoSettings, clip::IntoFrame, effect::EffectRegistrationPacket};
+
+pub(crate) type RenderFunction = for<'a> fn(&'a Box<dyn Any>, &Box<dyn Any>, MutexGuard<wgpu::RenderPass<'a>>, u64);
 
 /// Timing information needed for rendering
 #[derive(Default, Debug, Clone, Copy)]
@@ -28,7 +32,7 @@ pub struct Time {
 }
 
 impl Time {
-    pub fn push_clip(mut self, clip_frame: u64, clip_time: f64, clip_progress: f64) -> Self {
+    pub fn derive_clip(mut self, clip_frame: u64, clip_time: f64, clip_progress: f64) -> Self {
         self.sequence_frame = self.clip_frame;
         self.sequence_time = self.clip_time;
         self.sequence_progress = self.clip_progress;
@@ -40,13 +44,20 @@ impl Time {
     }
 }
 
+pub enum RenderEvent<'a> {
+    Effect { // Render effect
+        id: usize,
+        params: &'a Box<dyn Any>,
+        frame: u64,
+    }
+}
+
 pub trait Render {
     fn render(&self, renderer: &mut Renderer);
 }
 
-#[derive(Debug)]
 pub struct Renderer {
-    settings: VideoSettings,
+    pub settings: VideoSettings,
 
     // WGPU Special
     queue: wgpu::Queue,
@@ -63,7 +74,10 @@ pub struct Renderer {
     #[cfg(feature = "preview")] surface: wgpu::Surface,
     #[cfg(feature = "preview")] config: wgpu::SurfaceConfiguration,
 
-    rect: Rect,
+    /// Holds function pointers to all `render()` functions of registered effects
+    effect_functions: Vec<Option<RenderFunction>>,
+    /// Holds `self` for the `render()` functions described in [`Renderer::effect_functions`]
+    effects: Vec<Option<Box<dyn Any>>>,
 }
 
 impl Renderer {
@@ -156,8 +170,6 @@ impl Renderer {
             config
         };
 
-        let rect = Rect::new(&device, config.clone());
-
         Self {
             settings,
             
@@ -173,7 +185,8 @@ impl Renderer {
             #[cfg(feature = "preview")] surface,
             #[cfg(feature = "preview")] config,
 
-            rect,
+            effect_functions: Vec::new(),
+            effects: Vec::new(),
         }
     }
 
@@ -183,29 +196,45 @@ impl Renderer {
     }
 
     #[inline]
+    pub fn duration(&self) -> Duration {
+        self.settings.duration
+    }
+
+    #[inline]
+    pub fn last_frame(&self) -> u64 {
+        self.settings.duration.into_frame(self.settings.fps)
+    }
+
+    #[inline]
     pub fn wgpu_device(&self) -> &wgpu::Device {
         &self.device
     }
 
     #[inline]
+    #[cfg(feature = "preview")]
     pub fn wgpu_config(&self) -> wgpu::SurfaceConfiguration {
         self.config.clone()
     }
 
+    pub(crate) fn register_effects(&mut self, packets: Vec<EffectRegistrationPacket>) {
+        info!("Renderer received {} effect registration packets", packets.len());
 
-    pub(crate) fn begin(&mut self) {
-        
+        for packet in packets {
+            info!("Registering effect on id {}", packet.id);
+                        
+            if self.effect_functions.len() < packet.id + 1 {
+                self.effect_functions.extend((self.effect_functions.len()..=packet.id).map(|_|None));
+                self.effects.extend((self.effects.len()..=packet.id).map(|_|None));
+            }
+
+            if self.effect_functions[packet.id].is_none() {
+                self.effect_functions[packet.id] = Some(packet.render_function);
+                self.effects[packet.id] = Some(packet.init_function.clone()(self));
+            }
+        }
     }
 
-    pub fn rect(&self) {
-        self.rect.render(self);
-    }
-
-    pub fn render(&mut self, renderable: &mut impl Render) {
-        renderable.render(self);
-    }
-
-    pub(crate) fn end(&mut self) -> Option<Vec<u8>> {
+    pub(crate) fn render(&mut self, events: Vec<RenderEvent>) -> Option<Vec<u8>> {
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Main Command Encoder"),
         });
@@ -236,6 +265,15 @@ impl Renderer {
                 }],
                 depth_stencil_attachment: None,
             });
+
+            let pass_ref = Mutex::new(pass);
+            for event in events {
+                match event {
+                    RenderEvent::Effect { id, params, frame } => {
+                        self.effect_functions[id].clone().unwrap()(self.effects[id].as_ref().unwrap(), params, pass_ref.lock().unwrap(), frame);
+                    },
+                }
+            }
         }
 
         #[cfg(not(feature = "preview"))]
@@ -267,6 +305,8 @@ impl Renderer {
 
         #[cfg(not(feature = "preview"))]
         {
+            info!("Copying buffers...");
+
             let buffer_slice = self.out_buffer.slice(..);
             let request = buffer_slice.map_async(wgpu::MapMode::Read);
             self.device.poll(wgpu::Maintain::Wait);

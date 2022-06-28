@@ -1,7 +1,6 @@
 use core::time::Duration;
-use std::time::Instant;
 
-use crate::{render::{Renderer, Time}, sequence::{Sequence, Clip}, io::Export, api::color::Color, rgb8};
+use crate::{render::{Renderer, Time}, io::Export, api::color::Color, rgb8, clip::Clip};
 
 use log::info;
 
@@ -24,25 +23,25 @@ impl Default for VideoSettings {
     }
 }
 
-pub struct Video {
+pub struct Video<'a> {
     #[cfg(feature = "preview")] event_loop: winit::event_loop::EventLoop<()>,
     #[cfg(feature = "preview")] window: winit::window::Window,
     renderer: Renderer,
-    root_sequence: Sequence,
-    settings: VideoSettings,
+    root: Clip<'a>,
+    pub settings: VideoSettings,
 }
 
-impl Video {
-    pub fn new(video_settings: VideoSettings) -> Self {
+impl<'a> Video<'a> {
+    pub fn new(settings: VideoSettings) -> Self {
         #[cfg(feature = "preview")]
         let (event_loop, window, renderer) = {
             let event_loop = winit::event_loop::EventLoop::new();
             let window = winit::window::WindowBuilder::new()
-                .with_inner_size(winit::dpi::PhysicalSize::new(video_settings.resolution.0, video_settings.resolution.1))
+                .with_inner_size(winit::dpi::PhysicalSize::new(settings.resolution.0, settings.resolution.1))
                 .with_resizable(false)
                 .build(&event_loop)
                 .unwrap();
-            let renderer = Renderer::new(video_settings, &window);
+            let renderer = Renderer::new(settings, &window);
 
             (event_loop, window, renderer)
         };
@@ -51,29 +50,32 @@ impl Video {
             #[cfg(feature = "preview")] event_loop,
             #[cfg(feature = "preview")] window,
             #[cfg(feature = "preview")] renderer,
-            #[cfg(not(feature = "preview"))] renderer: Renderer::new(video_settings),
-            root_sequence: Sequence::new(60.0, Duration::from_secs(5)).with_name("root"),
-            settings: video_settings,
+            #[cfg(not(feature = "preview"))] renderer: Renderer::new(settings),
+            root: Clip::empty(settings.duration, settings.fps),
+            settings,
         }
     }
 
-    pub fn root(&mut self) -> &mut Sequence {
-        &mut self.root_sequence
+    pub fn root(&mut self) -> &mut Clip<'a> {
+        &mut self.root
     }
 
-    pub fn render(mut self, exporter: impl Export) {
+    #[allow(unused_variables)]
+    pub fn render(mut self, exporter: impl Export) where Self: 'static {
+        self.renderer.register_effects(self.root.get_registration_packets());
+
         #[cfg(feature = "preview")] self.preview();
         #[cfg(not(feature = "preview"))] self.export(exporter);
     }
 
     #[cfg(feature = "preview")]
-    fn preview(mut self) {
+    fn preview(self) where Self: 'static {
         let Self {
             settings,
             window,
             event_loop,
             mut renderer,
-            mut root_sequence,
+            mut root,
             ..
         } = self;
 
@@ -87,8 +89,8 @@ impl Video {
                 _ => (),
             },
             winit::event::Event::RedrawRequested(window_id) if window_id == window.id() => {
-                render_frame(frame, &mut renderer, &mut root_sequence);
-                frame = (frame + 1) % (self.settings.duration.as_secs_f64() * settings.fps) as u64;
+                render_frame(frame, &mut renderer, &mut root);
+                frame = (frame + 1) % (settings.duration.as_secs_f64() * settings.fps) as u64;
             },
             winit::event::Event::MainEventsCleared => {
                 window.request_redraw();
@@ -99,15 +101,16 @@ impl Video {
 
     #[cfg(not(feature = "preview"))]
     fn export(&mut self, mut exporter: impl Export) {
+        use crate::clip::IntoFrame;
+
         info!("Starting render...");
         let start_time = Instant::now();
 
         exporter.begin(self.settings);
 
-        let root_info = self.root_sequence.info();
-        for frame in 0..((root_info.duration.as_secs_f64() * self.renderer.fps()) as u64) {
+        for frame in 0..self.settings.duration.into_frame(self.settings.fps) {
             info!("Encoding frame...");
-            exporter.push_frame(true, &render_frame(frame, &mut self.renderer, &mut self.root_sequence).unwrap()[..]);
+            exporter.push_frame(true, &render_frame(frame, &mut self.renderer, &mut self.root).unwrap()[..]);
         }
 
         info!("Finalizing encoding...");
@@ -118,26 +121,24 @@ impl Video {
     }
 }
 
-fn render_frame(frame: u64, renderer: &mut Renderer, root_sequence: &mut Sequence) -> Option<Vec<u8>> {
+fn render_frame(frame: u64, renderer: &mut Renderer, clip: &mut Clip<'_>) -> Option<Vec<u8>> {
     let time = frame as f64 / renderer.fps();
-    let progress = time / root_sequence.info().duration.as_secs_f64();
+    let progress = time / renderer.duration().as_secs_f64();
 
     info!("Rendering frame {}...", frame);
 
-    renderer.begin();
-    root_sequence.render(Time {
-        video_frame: frame,
-        sequence_frame: frame,
-        clip_frame: frame,
-        video_time: time,
-        sequence_time: time,
-        clip_time: time,
-        video_progress: progress,
-        sequence_progress: progress,
-        clip_progress: progress,
-    }, renderer);
-
-    #[cfg(not(feature = "preview"))] info!("Copying buffers...");
-    
-    renderer.end()
+    renderer.render(clip.render(
+        Time {
+            video_frame: frame,
+            sequence_frame: frame,
+            clip_frame: frame,
+            video_time: time,
+            sequence_time: time,
+            clip_time: time,
+            video_progress: progress,
+            sequence_progress: progress,
+            clip_progress: progress,
+        },
+        renderer.last_frame(),
+    ))
 }

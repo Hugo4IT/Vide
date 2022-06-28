@@ -1,3 +1,5 @@
+use std::sync::MutexGuard;
+
 use wgpu::util::DeviceExt;
 
 use super::shader::Shader;
@@ -5,10 +7,8 @@ use super::shader::Shader;
 #[repr(C)]
 #[derive(Default, Debug, Clone, Copy)]
 pub struct Vertex {
-    pub position: [f32; 4],
-    pub uv1_uv2: [f32; 4],
-    pub vertex_data_2: [f32; 4],
-    pub vertex_data_3: [f32; 4],
+    pub position: [f32; 2],
+    pub uv: [f32; 2],
 }
 
 unsafe impl bytemuck::Pod for Vertex {}
@@ -23,22 +23,12 @@ impl Vertex {
                 wgpu::VertexAttribute {
                     offset: 0,
                     shader_location: 0,
-                    format: wgpu::VertexFormat::Float32x4,
+                    format: wgpu::VertexFormat::Float32x2,
                 },
                 wgpu::VertexAttribute {
-                    offset: core::mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
+                    offset: core::mem::size_of::<[f32; 2]>() as wgpu::BufferAddress,
                     shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                wgpu::VertexAttribute {
-                    offset: core::mem::size_of::<[f32; 8]>() as wgpu::BufferAddress,
-                    shader_location: 2,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                wgpu::VertexAttribute {
-                    offset: core::mem::size_of::<[f32; 12]>() as wgpu::BufferAddress,
-                    shader_location: 3,
-                    format: wgpu::VertexFormat::Float32x4,
+                    format: wgpu::VertexFormat::Float32x2,
                 },
             ],
         }
@@ -48,7 +38,9 @@ impl Vertex {
 #[derive(Debug)]
 pub struct Mesh {
     vertices: Vec<Vertex>,
-    indices: Option<Vec<Vertex>>,
+    len_vertices: u32,
+    indices: Option<Vec<u16>>,
+    len_indices: u32,
     shader: Shader,
 
     vertex_buffer: wgpu::Buffer,
@@ -57,12 +49,26 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    pub fn new(device: &wgpu::Device, config: wgpu::SurfaceConfiguration, vertices: Vec<Vertex>, indices: Option<Vec<Vertex>>, shader: Shader) -> Self {
+    pub fn new(device: &wgpu::Device, config: wgpu::SurfaceConfiguration, vertices: Vec<Vertex>, indices: Option<Vec<u16>>, shader: Shader) -> Self {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
             contents: bytemuck::cast_slice(&vertices[..]),
             usage: wgpu::BufferUsages::VERTEX,
         });
+        let len_vertices = vertices.len() as u32;
+
+        let (index_buffer, len_indices) = if let Some(indices) = indices.as_ref() {
+            (
+                Some(device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Index Buffer"),
+                    contents: bytemuck::cast_slice(&indices[..]),
+                    usage: wgpu::BufferUsages::INDEX,
+                })),
+                indices.len() as u32,
+            )
+        } else {
+            (None, 0)
+        };
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
@@ -109,11 +115,26 @@ impl Mesh {
 
         Self {
             vertices,
+            len_vertices,
             indices,
+            len_indices,
             shader,
             vertex_buffer,
-            index_buffer: None,
+            index_buffer,
             pipeline,
+        }
+    }
+
+    pub fn render<'a>(&'a self, mut render_pass: MutexGuard<wgpu::RenderPass<'a>>) {
+        if let Some(index_buffer) = self.index_buffer.as_ref() {
+            render_pass.set_pipeline(&self.pipeline);
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..self.len_indices, 0, 0..1);
+        } else {
+            render_pass.set_pipeline(&self.pipeline);
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.draw(0..self.len_vertices, 0..1);
         }
     }
 }

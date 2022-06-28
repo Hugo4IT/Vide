@@ -1,23 +1,6 @@
 use std::time::Duration;
 
-use vide::{sequence::{Clip, ClipInfo}, render::{Time, Renderer}, video::{Video, VideoSettings}, rgb8, api::rect::Rect};
-
-struct MyClip;
-impl Clip for MyClip {
-    fn init(&mut self, renderer: &mut Renderer) { }
-
-    fn info(&self) -> ClipInfo {
-        ClipInfo {
-            name: Some("My Epic Clip".to_string()),
-            duration: Duration::from_secs(2),
-        }
-    }
-
-    fn render(&mut self, time: Time, renderer: &mut Renderer) {
-        renderer.rect();
-        println!("Rendering frame {} of My Epic Clip ({}/300)", time.clip_frame, time.video_frame)
-    }
-}
+use vide::{video::{Video, VideoSettings}, api::rect::Rect, keyframes, rgb8};
 
 fn main() {
     env_logger::init();
@@ -26,6 +9,25 @@ fn main() {
         duration: Duration::from_secs_f64(5.0),
         ..Default::default()
     });
-    video.root().push_clip(1.0, MyClip);
+
+    video.root().new_clip(1.0..3.0)
+        .effect(Rect {                                          // Solid rectangle
+            position: keyframes!(
+                initial (960.0, 1080.0),                        // Frame 0  = (960.0, 1080.0)
+                15 => OUT_CUBIC => (960.0, 540.0),              // Frame 15 = (960.0, 540.0)
+                                                                // Transition from frame 0 to 15 handled with EASE_OUT_CUBIC
+            ),
+            size: keyframes!(
+                initial (300.0, 200.0),                         // Frame 0  = (300.0, 200.0)
+                15 => OUT_CUBIC => (400.0, 300.0),              // Frame 15 = (400.0, 300.0)
+                                                                // Transition from frame 0 to 15 handled with EASE_OUT_CUBIC
+            ),
+            color: keyframes!(
+                initial rgb8!(0xda, 0x00, 0x37),                // Frame 0  = #da0037
+                30 => LINEAR => rgb8!(0xda, 0x00, 0x37),        // Frame 30 = #da0037 (State holds for 30 frames)
+                45 => OUT_QUADRATIC => rgb8!(0x00, 0xda, 0x37), // Frame 45 = #00da37 (EASE_OUT_QUADRATIC from frame 30 to 45)
+            ),
+        });
+
     video.render(vide::quick_export::to("output.mp4"));
 }

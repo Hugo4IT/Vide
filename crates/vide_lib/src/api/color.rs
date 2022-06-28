@@ -1,3 +1,5 @@
+use super::animation::Interpolate;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Color {
     pub r: f64,
@@ -21,6 +23,17 @@ impl Color {
             g,
             b,
             a,
+        }
+    }
+}
+
+impl Interpolate for Color {
+    fn interpolate(a: Self, b: Self, t: f64) -> Self {
+        Self {
+            r: f64::interpolate(a.r, b.r, t),
+            g: f64::interpolate(a.g, b.g, t),
+            b: f64::interpolate(a.b, b.b, t),
+            a: f64::interpolate(a.a, b.a, t),
         }
     }
 }

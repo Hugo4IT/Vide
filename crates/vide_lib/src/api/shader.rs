@@ -1,7 +1,5 @@
 use std::borrow::Cow;
 
-use crate::render::Renderer;
-
 #[derive(Debug)]
 pub struct Shader {
     pub module: wgpu::ShaderModule,
