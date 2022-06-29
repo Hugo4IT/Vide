@@ -1,6 +1,6 @@
 use crate::clip::IntoFrame;
 
-use self::ease::{EasingFunction, EASE_LINEAR};
+use self::ease::{EasingFunction, LINEAR};
 
 #[macro_export] macro_rules! lerp {
     ($start:expr, $end:expr, $progress:expr) => {
@@ -30,33 +30,33 @@ pub mod ease {
     pub type EasingFunction = fn(f64)->f64;
     
     /// `f(t)=t`
-    pub const EASE_LINEAR:          EasingFunction = |t|t;
+    pub const LINEAR:          EasingFunction = |t|t;
     /// `f(t)=t^2`
-    pub const EASE_IN_QUADRATIC:    EasingFunction = |t|t*t;
+    pub const IN_QUADRATIC:    EasingFunction = |t|t*t;
     /// `f(t)=t^3`
-    pub const EASE_IN_CUBIC:        EasingFunction = |t|t*t*t;
+    pub const IN_CUBIC:        EasingFunction = |t|t*t*t;
     /// `f(t)=t^4`
-    pub const EASE_IN_QUARTIC:      EasingFunction = |t|t*t*t*t;
+    pub const IN_QUARTIC:      EasingFunction = |t|t*t*t*t;
     /// `f(t)=t^5`
-    pub const EASE_IN_QUINTIC:      EasingFunction = |t|t*t*t*t*t;
+    pub const IN_QUINTIC:      EasingFunction = |t|t*t*t*t*t;
     /// `f(t)=t^10`
-    pub const EASE_IN_EXPONENTIAL:  EasingFunction = |t|t*t*t*t*t*t;
+    pub const IN_EXPONENTIAL:  EasingFunction = |t|t*t*t*t*t*t;
     /// `f(t)=t^2`
-    pub const EASE_OUT_QUADRATIC:   EasingFunction = |t|1.0-(1.0-t).powi(2);
+    pub const OUT_QUADRATIC:   EasingFunction = |t|1.0-(1.0-t).powi(2);
     /// `f(t)=t^3`
-    pub const EASE_OUT_CUBIC:       EasingFunction = |t|1.0-(1.0-t).powi(3);
+    pub const OUT_CUBIC:       EasingFunction = |t|1.0-(1.0-t).powi(3);
     /// `f(t)=t^4`
-    pub const EASE_OUT_QUARTIC:     EasingFunction = |t|1.0-(1.0-t).powi(4);
+    pub const OUT_QUARTIC:     EasingFunction = |t|1.0-(1.0-t).powi(4);
     /// `f(t)=t^5`
-    pub const EASE_OUT_QUINTIC:     EasingFunction = |t|1.0-(1.0-t).powi(5);
+    pub const OUT_QUINTIC:     EasingFunction = |t|1.0-(1.0-t).powi(5);
     /// `f(t)=t^10`
-    pub const EASE_OUT_EXPONENTIAL: EasingFunction = |t|1.0-(1.0-t).powi(10);
+    pub const OUT_EXPONENTIAL: EasingFunction = |t|1.0-(1.0-t).powi(10);
     /// Overshoots
-    pub const EASE_IN_BACK:         EasingFunction = cubic_bezier!(0.69, -0.53, 0.06, 0.99);
+    pub const IN_BACK:         EasingFunction = cubic_bezier!(0.69, -0.53, 0.06, 0.99);
     /// Overshoots
-    pub const EASE_OUT_BACK:        EasingFunction = cubic_bezier!(0.42, 1.5, 0.35, 1.0);
+    pub const OUT_BACK:        EasingFunction = cubic_bezier!(0.42, 1.5, 0.35, 1.0);
     /// Overshoots
-    pub const EASE_IN_OUT_BACK:     EasingFunction = cubic_bezier!(0.84, -0.43, 0.11, 1.29);
+    pub const IN_OUT_BACK:     EasingFunction = cubic_bezier!(0.84, -0.43, 0.11, 1.29);
 }
 
 pub trait Interpolate {
@@ -161,7 +161,7 @@ impl<T: Interpolate + Clone + std::fmt::Debug> AnimatedProperty<T> {
             let keyframe = self.keyframes.first().unwrap();
             if keyframe.frame >= frame {
                 return keyframe.evaluate(Keyframe {
-                    easing: EASE_LINEAR,
+                    easing: LINEAR,
                     state: self.initial.clone(),
                     frame: 0,
                 }, frame)
@@ -186,6 +186,11 @@ impl<T: Interpolate + Clone + std::fmt::Debug> AnimatedProperty<T> {
     }
 }
 
+pub enum KeyframeTiming<T: IntoFrame> {
+    Abs(T),
+    Rel(T),
+}
+
 pub struct AnimatedPropertyBuilder<T: Interpolate + Clone> {
     initial: Option<T>,
     keyframes: Vec<Keyframe<T>>,
@@ -201,9 +206,18 @@ impl<T: Interpolate + Clone + std::fmt::Debug> AnimatedPropertyBuilder<T> {
         }
     }
 
-    pub fn keyframe(self, at: impl IntoFrame, easing: EasingFunction, state: T) -> Self {
-        let frame = at.into_frame(self.fps);
-        self.push_keyframe(Keyframe { frame, easing, state })
+    pub fn keyframe(mut self, at: KeyframeTiming<impl IntoFrame>, easing: EasingFunction, state: T) -> Self {
+        let frame = match at {
+            KeyframeTiming::Abs(at) => at.into_frame(self.fps),
+            KeyframeTiming::Rel(at) => self.keyframes.last().map(|k| k.frame).unwrap_or(0) + at.into_frame(self.fps),
+        };
+        
+        if frame == 0 {
+            self.initial = Some(state);
+            self
+        } else {
+            self.push_keyframe(Keyframe { frame, easing, state })
+        }
     }
 
     pub fn push_keyframe(mut self, keyframe: Keyframe<T>) -> Self {
@@ -214,16 +228,16 @@ impl<T: Interpolate + Clone + std::fmt::Debug> AnimatedPropertyBuilder<T> {
     pub fn hold(self, time: impl IntoFrame) -> Self {
         let frame = time.into_frame(self.fps);
         let initial = self.initial.as_ref().unwrap();
-        let keyframe = if let Some(last) = self.keyframes.last().map(|x| x.clone()) {
+        let keyframe = if let Some(last) = self.keyframes.last().cloned() {
             Keyframe {
                 state: last.state.clone(),
-                easing: EASE_LINEAR,
+                easing: LINEAR,
                 frame: last.frame + frame,
             }
         } else {
             Keyframe {
                 state: initial.clone(),
-                easing: EASE_LINEAR,
+                easing: LINEAR,
                 frame,
             }
         };

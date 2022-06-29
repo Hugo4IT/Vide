@@ -11,6 +11,7 @@ pub mod prelude {
     pub use super::api::rect::Rect;
     pub use super::api::transform::Transform;
     pub use super::api::animation::AnimatedPropertyBuilder as Animation;
+    pub use super::api::animation::KeyframeTiming::*;
     pub use super::api::animation::ease::*;
     pub use super::api::video::*;
     pub use super::api::color::*;
