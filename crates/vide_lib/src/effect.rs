@@ -1,6 +1,6 @@
 use std::{any::Any, sync::MutexGuard};
 
-use crate::render::{Renderer, RenderFunction};
+use crate::render::{Renderer, PushFunction, RenderFunction};
 
 #[macro_export] macro_rules! register_effect {
     ($name:ident, $dataname:ident) => {
@@ -12,6 +12,9 @@ use crate::render::{Renderer, RenderFunction};
                     [<$name _ID>] != usize::MAX
                 }
 
+                /// # Warning
+                /// 
+                /// Never use this function directly as the event may not function correctly afterwards
                 unsafe fn get_id() -> usize {
                     if [<$name _ID>] == usize::MAX {
                         [<$name _ID>] = $crate::effect::effect_counter();
@@ -23,8 +26,12 @@ use crate::render::{Renderer, RenderFunction};
                     Box::new(<$name as $crate::effect::Effect>::new(renderer))
                 }
 
-                fn _render<'a>(backend: &'a Box<dyn std::any::Any>, params: &Box<dyn std::any::Any>, pass: std::sync::MutexGuard<wgpu::RenderPass<'a>>, queue: &wgpu::Queue, frame: u64) {
-                    $name::render(backend.as_ref().downcast_ref().unwrap(), params.as_ref().downcast_ref().unwrap(), pass, queue, frame)
+                fn _push(backend: &mut Box<dyn std::any::Any>, params: &Box<dyn std::any::Any>, frame: u64) {
+                    <$name as $crate::effect::EffectBackend>::push(backend.as_mut().downcast_mut().unwrap(), params.as_ref().downcast_ref::<<$name as $crate::effect::EffectBackend>::Instance>().unwrap(), frame)
+                }
+
+                fn _render<'a>(backend: &'a mut Box<dyn std::any::Any>, pass: std::sync::MutexGuard<wgpu::RenderPass<'a>>, device: &wgpu::Device, queue: &wgpu::Queue) {
+                    <$name as $crate::effect::EffectBackend>::render(backend.as_mut().downcast_mut().unwrap(), pass, device, queue)
                 }
             }
         }
@@ -45,11 +52,18 @@ pub trait Effect {
     fn new(renderer: &mut Renderer) -> Self;
 }
 
+pub trait EffectBackend {
+    type Instance;
+    fn push(&mut self, instance: &Self::Instance, frame: u64);
+    fn render<'a>(&'a mut self, pass: MutexGuard<'_, wgpu::RenderPass<'a>>, device: &wgpu::Device, queue: &wgpu::Queue);
+}
+
 pub trait RegisteredEffectData {
     unsafe fn is_registered() -> bool;
     unsafe fn get_id() -> usize;
     fn _new(renderer: &mut Renderer) -> Box<dyn Any>;
-    fn _render<'a>(backend: &'a Box<dyn Any>, params: &Box<dyn Any>, pass: MutexGuard<'_, wgpu::RenderPass<'a>>, queue: &wgpu::Queue, frame: u64);
+    fn _push(backend: &mut Box<dyn Any>, params: &Box<dyn Any>, frame: u64);
+    fn _render<'a>(backend: &'a mut Box<dyn Any>, pass: MutexGuard<'_, wgpu::RenderPass<'a>>, device: &wgpu::Device, queue: &wgpu::Queue);
 }
 
 pub struct EffectData {
@@ -60,6 +74,7 @@ pub struct EffectData {
 #[derive(Clone, Copy)]
 pub struct EffectRegistrationPacket {
     pub id: usize,
+    pub push_function: PushFunction,
     pub render_function: RenderFunction,
     pub init_function: fn(&mut Renderer)->Box<dyn Any>,
 }

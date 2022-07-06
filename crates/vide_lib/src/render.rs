@@ -5,7 +5,8 @@ use wgpu::util::DeviceExt;
 
 use crate::{api::video::VideoSettings, clip::IntoFrame, effect::EffectRegistrationPacket};
 
-pub(crate) type RenderFunction = for<'a> fn(&'a Box<dyn Any>, &Box<dyn Any>, MutexGuard<wgpu::RenderPass<'a>>, &wgpu::Queue, u64);
+pub(crate) type PushFunction = fn(&mut Box<dyn Any>, &Box<dyn Any>, u64);
+pub(crate) type RenderFunction = for<'a> fn(&'a mut Box<dyn Any>, MutexGuard<wgpu::RenderPass<'a>>, &wgpu::Device, &wgpu::Queue);
 
 /// Timing information needed for rendering
 #[derive(Default, Debug, Clone, Copy)]
@@ -82,14 +83,18 @@ pub struct Renderer {
     // Window surface for preview
     #[cfg(feature = "preview")] surface: wgpu::Surface,
 
+    /// Holds function pointers to all `push()` functions of registered effects
+    effect_push_functions: Vec<Option<PushFunction>>,
     /// Holds function pointers to all `render()` functions of registered effects
-    effect_functions: Vec<Option<RenderFunction>>,
+    effect_render_functions: Vec<Option<RenderFunction>>,
     /// Holds `self` for the `render()` functions described in [`Renderer::effect_functions`]
     effects: Vec<Option<Box<dyn Any>>>,
 
     transform_buffer: wgpu::Buffer,
     transform_bind_group_layout: wgpu::BindGroupLayout,
     transform_bind_group: wgpu::BindGroup,
+
+    depth_texture_view: wgpu::TextureView,
 }
 
 impl Renderer {
@@ -170,7 +175,7 @@ impl Renderer {
         let config = {
             let config = wgpu::SurfaceConfiguration {
                 usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-                #[cfg(feature = "preview")] format: surface.get_preferred_format(&adapter).unwrap(),
+                #[cfg(feature = "preview")] format: surface.get_supported_formats(&adapter)[0],
                 #[cfg(not(feature = "preview"))] format: wgpu::TextureFormat::Rgba8UnormSrgb,
                 width: settings.resolution.0,
                 height: settings.resolution.1,
@@ -224,6 +229,22 @@ impl Renderer {
             ],
         });
 
+        let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Depth Texture"),
+            size: wgpu::Extent3d {
+                width: settings.resolution.0,
+                height: settings.resolution.1,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Depth32Float,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+        });
+
+        let depth_texture_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
+
         Self {
             settings,
             screen_matrix,
@@ -240,12 +261,15 @@ impl Renderer {
 
             #[cfg(feature = "preview")] surface,
 
-            effect_functions: Vec::new(),
+            effect_push_functions: Vec::new(),
+            effect_render_functions: Vec::new(),
             effects: Vec::new(),
 
             transform_buffer,
             transform_bind_group_layout,
             transform_bind_group,
+
+            depth_texture_view,
         }
     }
 
@@ -285,13 +309,15 @@ impl Renderer {
         for packet in packets {
             info!("Registering effect on id {}", packet.id);
                         
-            if self.effect_functions.len() < packet.id + 1 {
-                self.effect_functions.extend((self.effect_functions.len()..=packet.id).map(|_|None));
+            if self.effect_render_functions.len() < packet.id + 1 {
+                self.effect_push_functions.extend((self.effect_push_functions.len()..=packet.id).map(|_|None));
+                self.effect_render_functions.extend((self.effect_render_functions.len()..=packet.id).map(|_|None));
                 self.effects.extend((self.effects.len()..=packet.id).map(|_|None));
             }
 
-            if self.effect_functions[packet.id].is_none() {
-                self.effect_functions[packet.id] = Some(packet.render_function);
+            if self.effect_render_functions[packet.id].is_none() {
+                self.effect_push_functions[packet.id] = Some(packet.push_function);
+                self.effect_render_functions[packet.id] = Some(packet.render_function);
                 self.effects[packet.id] = Some((packet.init_function)(self));
             }
         }
@@ -312,7 +338,7 @@ impl Renderer {
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
-                color_attachments: &[wgpu::RenderPassColorAttachment {
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     #[cfg(not(feature = "preview"))] view: &self.out_texture_view,
                     #[cfg(feature = "preview")] view: &surface_view,
                     resolve_target: None,
@@ -325,8 +351,15 @@ impl Renderer {
                         }),
                         store: true,
                     },
-                }],
-                depth_stencil_attachment: None,
+                })],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.depth_texture_view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: true,
+                    }),
+                    stencil_ops: None,
+                }),
             });
 
             pass.set_bind_group(0, &self.transform_bind_group, &[]);
@@ -341,8 +374,15 @@ impl Renderer {
                         self.queue.write_buffer(&self.transform_buffer, 0, bytemuck::cast_slice(&[Into::<[[f32; 4]; 4]>::into(transform)]));
                     }
                     RenderEvent::Effect { id, params, frame } => {
-                        self.effect_functions[id].unwrap()(self.effects[id].as_ref().unwrap(), params, pass_ref.lock().unwrap(), &self.queue, frame);
+                        self.effect_push_functions[id].unwrap()(self.effects.get_mut(id).unwrap().as_mut().unwrap(), params, frame);
                     },
+                }
+            }
+
+            let render_functions = self.effect_render_functions.clone();
+            for (id, effect) in self.effects.iter_mut().enumerate() {
+                if let Some(effect) = effect {
+                    (render_functions[id].unwrap())(effect, pass_ref.lock().unwrap(), &self.device, &self.queue);
                 }
             }
         }

@@ -9,7 +9,7 @@ pub struct Shader {
 
 impl Shader {
     pub fn new(renderer: &mut Renderer, source: Cow<str>) -> Self {
-        let module = renderer.wgpu_device().create_shader_module(&wgpu::ShaderModuleDescriptor {
+        let module = renderer.wgpu_device().create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader Module"),
             source: wgpu::ShaderSource::Wgsl(source),
         });

@@ -4,5 +4,6 @@ members = [
     "crates/vide_lib",
     "crates/vide_ffmpeg",
     "examples/animation",
+    "examples/easing",
 ]
 resolver = "2"

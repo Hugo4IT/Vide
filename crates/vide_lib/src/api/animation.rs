@@ -16,6 +16,12 @@ use self::ease::{EasingFunction, LINEAR};
     };
 }
 
+#[macro_export] macro_rules! unanimated {
+    ($value:expr) => {
+        $crate::api::animation::AnimatedPropertyBuilder::new(60.0).keyframe($crate::api::animation::KeyframeTiming::Abs(0), $crate::api::animation::ease::LINEAR, $value).build()
+    };
+}
+
 macro_rules! impl_interpolate {
     ($typ:ty) => {
         impl Interpolate for $typ {
@@ -51,11 +57,11 @@ pub mod ease {
     pub const OUT_QUINTIC:     EasingFunction = |t|1.0-(1.0-t).powi(5);
     /// `f(t)=t^10`
     pub const OUT_EXPONENTIAL: EasingFunction = |t|1.0-(1.0-t).powi(10);
-    /// Overshoots
+    /// Overshoots, catapult-ish motion
     pub const IN_BACK:         EasingFunction = cubic_bezier!(0.69, -0.53, 0.06, 0.99);
-    /// Overshoots
+    /// Overshoots at end
     pub const OUT_BACK:        EasingFunction = cubic_bezier!(0.42, 1.5, 0.35, 1.0);
-    /// Overshoots
+    /// Overshoots at both sides of animation
     pub const IN_OUT_BACK:     EasingFunction = cubic_bezier!(0.84, -0.43, 0.11, 1.29);
 }
 

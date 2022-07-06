@@ -16,6 +16,7 @@ pub mod prelude {
     pub use super::api::video::*;
     pub use super::api::color::*;
     pub use super::cubic_bezier;
+    pub use super::unanimated;
     pub use super::rgba8;
     pub use super::rgb8;
     pub use super::lerp;

@@ -7,12 +7,6 @@ pub trait IntoFrame {
     fn into_frame(self, fps: f64) -> u64;
 }
 
-impl IntoFrame for i32 {
-    fn into_frame(self, fps: f64) -> u64 {
-        (self as u64).into_frame(fps)
-    }
-}
-
 impl IntoFrame for u64 {
     fn into_frame(self, _fps: f64) -> u64 {
         self
@@ -113,6 +107,7 @@ impl<'a> Clip<'a> {
         if unsafe { !E::is_registered() } {
             self.effect_registration_packets.as_mut().unwrap().push(EffectRegistrationPacket {
                 id: unsafe { E::get_id() },
+                push_function: E::_push,
                 render_function: E::_render,
                 init_function: E::_new,
             });

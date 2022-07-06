@@ -1,8 +1,10 @@
 use std::sync::MutexGuard;
 
-use crate::{register_effect, effect::Effect};
+use wgpu::util::DeviceExt;
 
-use super::{mesh::{Mesh, Vertex, VertexAttributeDescriptor}, shader::Shader, color::Color, animation::AnimatedProperty, transform::OPENGL_TO_WGPU_MATRIX};
+use crate::{register_effect, effect::{Effect, EffectBackend}};
+
+use super::{mesh::{Vertex, VertexAttributeDescriptor}, shader::Shader, color::Color, animation::AnimatedProperty, transform::OPENGL_TO_WGPU_MATRIX, instanced_mesh::InstancedMesh};
 
 register_effect!(RectBackend, Rect);
 
@@ -13,7 +15,7 @@ pub struct Rect {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy)]
 struct RectInstance {
     matrix: [[f32; 4]; 4],
     color: [f32; 4],
@@ -39,31 +41,31 @@ impl VertexAttributeDescriptor for RectInstance {
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &[
                 wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float32x4,
                     offset: 0,
                     shader_location: 5,
-                    format: wgpu::VertexFormat::Float32x4,
                 },
                 wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float32x4,
                     offset: std::mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
                     shader_location: 6,
-                    format: wgpu::VertexFormat::Float32x4,
                 },
                 wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float32x4,
                     offset: std::mem::size_of::<[f32; 8]>() as wgpu::BufferAddress,
                     shader_location: 7,
-                    format: wgpu::VertexFormat::Float32x4,
                 },
                 wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float32x4,
                     offset: std::mem::size_of::<[f32; 12]>() as wgpu::BufferAddress,
                     shader_location: 8,
-                    format: wgpu::VertexFormat::Float32x4,
                 },
                 wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float32x4,
                     offset: std::mem::size_of::<[f32; 16]>() as wgpu::BufferAddress,
                     shader_location: 9,
-                    format: wgpu::VertexFormat::Float32x4,
                 },
-            ]
+            ],
         }
     }
 }
@@ -72,19 +74,26 @@ unsafe impl bytemuck::Pod for RectInstance {}
 unsafe impl bytemuck::Zeroable for RectInstance {}
 
 pub struct RectBackend {
-    mesh: Mesh<RectInstance>,
+    mesh: InstancedMesh<RectInstance>,
+    instances: Vec<RectInstance>,
 }
 
-impl RectBackend {
-    fn render<'a>(&'a self, rect: &Rect, pass: MutexGuard<wgpu::RenderPass<'a>>, queue: &wgpu::Queue, frame: u64) {
-        self.mesh.render(pass, queue, RectInstance::from_rect(rect, frame));
+impl EffectBackend for RectBackend {
+    type Instance = Rect;
+
+    fn push(&mut self, instance: &Self::Instance, frame: u64) {
+        self.instances.push(RectInstance::from_rect(instance, frame));
+    }
+
+    fn render<'a>(&'a mut self, mut pass: MutexGuard<wgpu::RenderPass<'a>>, device: &wgpu::Device, queue: &wgpu::Queue) {
+        self.mesh.render(pass, device, queue, self.instances.drain(..).collect());
     }
 }
 
 impl Effect for RectBackend {
     fn new(renderer: &mut crate::render::Renderer) -> Self {
         let shader = Shader::new(renderer, include_str!("rect.wgsl").into());
-        let mesh = Mesh::new(
+        let mesh = InstancedMesh::new(
             renderer,
             vec![
                 Vertex { position: [-0.5, -0.5], uv: [0.0, 1.0] },
@@ -101,6 +110,8 @@ impl Effect for RectBackend {
 
         Self {
             mesh,
+
+            instances: Vec::new(),
         }
     }
 }
