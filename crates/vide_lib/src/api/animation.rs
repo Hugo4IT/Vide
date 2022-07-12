@@ -136,8 +136,9 @@ pub struct Keyframe<T: Interpolate> {
 
 impl<T: Interpolate + Clone + std::fmt::Debug> Keyframe<T> {
     pub fn evaluate(&self, previous: Keyframe<T>, frame: u64) -> T {
-        let progress = (frame - previous.frame) as f64 / (self.frame - previous.frame) as f64;
-        T::interpolate(previous.state, self.state.clone(), (self.easing)(progress))
+        // t: 0.0..=1.0
+        let t = (frame - previous.frame) as f64 / (self.frame - previous.frame) as f64;
+        T::interpolate(previous.state, self.state.clone(), (self.easing)(t))
     }
 }
 
@@ -192,6 +193,15 @@ impl<T: Interpolate + Clone + std::fmt::Debug> AnimatedProperty<T> {
     }
 }
 
+impl<T> Default for AnimatedProperty<T> where T: Default + Interpolate + Clone {
+    fn default() -> Self {
+        Self {
+            initial: T::default(),
+            keyframes: Vec::new(),
+        }
+    }
+}
+
 pub enum KeyframeTiming<T: IntoFrame> {
     Abs(T),
     Rel(T),
@@ -212,17 +222,17 @@ impl<T: Interpolate + Clone + std::fmt::Debug> AnimatedPropertyBuilder<T> {
         }
     }
 
-    pub fn keyframe(mut self, at: KeyframeTiming<impl IntoFrame>, easing: EasingFunction, state: T) -> Self {
+    pub fn keyframe(mut self, at: KeyframeTiming<impl IntoFrame>, easing: EasingFunction, state: impl Into<T>) -> Self {
         let frame = match at {
             KeyframeTiming::Abs(at) => at.into_frame(self.fps),
             KeyframeTiming::Rel(at) => self.keyframes.last().map(|k| k.frame).unwrap_or(0) + at.into_frame(self.fps),
         };
         
         if frame == 0 {
-            self.initial = Some(state);
+            self.initial = Some(state.into());
             self
         } else {
-            self.push_keyframe(Keyframe { frame, easing, state })
+            self.push_keyframe(Keyframe { frame, easing, state: state.into() })
         }
     }
 

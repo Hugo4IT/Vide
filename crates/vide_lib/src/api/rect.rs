@@ -1,7 +1,5 @@
 use std::sync::MutexGuard;
 
-use wgpu::util::DeviceExt;
-
 use crate::{register_effect, effect::{Effect, EffectBackend}};
 
 use super::{mesh::{Vertex, VertexAttributeDescriptor}, shader::Shader, color::Color, animation::AnimatedProperty, transform::OPENGL_TO_WGPU_MATRIX, instanced_mesh::InstancedMesh};
@@ -85,7 +83,7 @@ impl EffectBackend for RectBackend {
         self.instances.push(RectInstance::from_rect(instance, frame));
     }
 
-    fn render<'a>(&'a mut self, mut pass: MutexGuard<wgpu::RenderPass<'a>>, device: &wgpu::Device, queue: &wgpu::Queue) {
+    fn render<'a>(&'a mut self, pass: MutexGuard<wgpu::RenderPass<'a>>, device: &wgpu::Device, queue: &wgpu::Queue) {
         self.mesh.render(pass, device, queue, self.instances.drain(..).collect());
     }
 }

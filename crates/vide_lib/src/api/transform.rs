@@ -25,18 +25,54 @@ impl Transform {
     }
 
     #[inline]
-    pub fn translation(&self) -> cgmath::Vector3<f32> {
+    pub fn get_translation(&self) -> cgmath::Vector3<f32> {
         self.translation
     }
 
     #[inline]
-    pub fn rotation(&self) -> cgmath::Quaternion<f32> {
+    pub fn translate(&mut self, by: (f32, f32, f32)) {
+        self.translation += cgmath::Vector3::new(by.0, by.1, by.2);
+        self.cached_matrix = None;
+    }
+
+    #[inline]
+    pub fn set_translation(&mut self, new_translation: (f32, f32, f32)) {
+        self.translation = cgmath::Vector3::new(new_translation.0, new_translation.1, new_translation.2);
+        self.cached_matrix = None;
+    }
+
+    #[inline]
+    pub fn get_rotation(&self) -> cgmath::Quaternion<f32> {
         self.rotation
     }
 
     #[inline]
-    pub fn scale(&self) -> cgmath::Vector3<f32> {
+    pub fn rotate_euler(&mut self, by: (f32, f32, f32)) {
+        self.rotation += cgmath::Quaternion::from(cgmath::Euler { x: cgmath::Deg(by.0), y: cgmath::Deg(by.1), z: cgmath::Deg(by.2) });
+        self.cached_matrix = None;
+    }
+
+    #[inline]
+    pub fn set_rotation_euler(&mut self, new_rotation: (f32, f32, f32)) {
+        self.rotation = cgmath::Quaternion::from(cgmath::Euler { x: cgmath::Deg(new_rotation.0), y: cgmath::Deg(new_rotation.1), z: cgmath::Deg(new_rotation.2) });
+        self.cached_matrix = None;
+    }
+
+    #[inline]
+    pub fn get_scale(&self) -> cgmath::Vector3<f32> {
         self.scale
+    }
+
+    #[inline]
+    pub fn scale(&mut self, by: (f32, f32, f32)) {
+        self.scale = cgmath::Vector3::new(self.scale.x * by.0, self.scale.y * by.1, self.scale.z * by.2);
+        self.cached_matrix = None;
+    }
+
+    #[inline]
+    pub fn set_scale(&mut self, new_scale: (f32, f32, f32)) {
+        self.scale = cgmath::Vector3::new(new_scale.0, new_scale.1, new_scale.2);
+        self.cached_matrix = None;
     }
 
     pub fn rebuild_matrix(&mut self, parent_matrix: cgmath::Matrix4<f32>) {

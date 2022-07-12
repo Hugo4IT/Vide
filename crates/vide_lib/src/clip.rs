@@ -75,8 +75,21 @@ impl<'a> Clip<'a> {
         (frame as f64 - start as f64) / (end - start) as f64
     }
 
-    pub fn translate(&mut self, transform: impl cgmath::Transform3) -> &mut Clip<'a> {
-        
+    #[inline]
+    pub fn translate(&mut self, by: (f32, f32, f32)) -> &mut Clip<'a> {
+        self.transform.translate(by);
+        self
+    }
+
+    #[inline]
+    pub fn rotate_euler(&mut self, by: (f32, f32, f32)) -> &mut Clip<'a> {
+        self.transform.rotate_euler(by);
+        self
+    }
+
+    #[inline]
+    pub fn scale(&mut self, by: (f32, f32, f32)) -> &mut Clip<'a> {
+        self.transform.scale(by);
         self
     }
 
