@@ -73,34 +73,34 @@ pub enum ShaderValue {
 impl ShaderValue {
     fn wgpu_equivalent(&self) -> wgpu::VertexFormat {
         match self {
-            ShaderValue::Uint8x2(_) => wgpu::VertexFormat::Uint8x2,
-            ShaderValue::Uint8x4(_) => wgpu::VertexFormat::Uint8x4,
-            ShaderValue::Sint8x2(_) => wgpu::VertexFormat::Sint8x2,
-            ShaderValue::Sint8x4(_) => wgpu::VertexFormat::Sint8x4,
-            ShaderValue::Unorm8x2(_) => wgpu::VertexFormat::Unorm8x2,
-            ShaderValue::Unorm8x4(_) => wgpu::VertexFormat::Unorm8x4,
-            ShaderValue::Snorm8x2(_) => wgpu::VertexFormat::Snorm8x2,
-            ShaderValue::Snorm8x4(_) => wgpu::VertexFormat::Snorm8x4,
-            ShaderValue::Uint16x2(_) => wgpu::VertexFormat::Uint16x2,
-            ShaderValue::Uint16x4(_) => wgpu::VertexFormat::Uint16x4,
-            ShaderValue::Sint16x2(_) => wgpu::VertexFormat::Sint16x2,
-            ShaderValue::Sint16x4(_) => wgpu::VertexFormat::Sint16x4,
+              ShaderValue::Uint8x2(_) => wgpu::VertexFormat::Uint8x2,
+              ShaderValue::Uint8x4(_) => wgpu::VertexFormat::Uint8x4,
+              ShaderValue::Sint8x2(_) => wgpu::VertexFormat::Sint8x2,
+              ShaderValue::Sint8x4(_) => wgpu::VertexFormat::Sint8x4,
+             ShaderValue::Unorm8x2(_) => wgpu::VertexFormat::Unorm8x2,
+             ShaderValue::Unorm8x4(_) => wgpu::VertexFormat::Unorm8x4,
+             ShaderValue::Snorm8x2(_) => wgpu::VertexFormat::Snorm8x2,
+             ShaderValue::Snorm8x4(_) => wgpu::VertexFormat::Snorm8x4,
+             ShaderValue::Uint16x2(_) => wgpu::VertexFormat::Uint16x2,
+             ShaderValue::Uint16x4(_) => wgpu::VertexFormat::Uint16x4,
+             ShaderValue::Sint16x2(_) => wgpu::VertexFormat::Sint16x2,
+             ShaderValue::Sint16x4(_) => wgpu::VertexFormat::Sint16x4,
             ShaderValue::Unorm16x2(_) => wgpu::VertexFormat::Unorm16x2,
             ShaderValue::Unorm16x4(_) => wgpu::VertexFormat::Unorm16x4,
             ShaderValue::Snorm16x2(_) => wgpu::VertexFormat::Snorm16x2,
             ShaderValue::Snorm16x4(_) => wgpu::VertexFormat::Snorm16x4,
-            ShaderValue::Float32(_) => wgpu::VertexFormat::Float32,
+              ShaderValue::Float32(_) => wgpu::VertexFormat::Float32,
             ShaderValue::Float32x2(_) => wgpu::VertexFormat::Float32x2,
             ShaderValue::Float32x3(_) => wgpu::VertexFormat::Float32x3,
             ShaderValue::Float32x4(_) => wgpu::VertexFormat::Float32x4,
-            ShaderValue::Uint32(_) => wgpu::VertexFormat::Uint32,
-            ShaderValue::Uint32x2(_) => wgpu::VertexFormat::Uint32x2,
-            ShaderValue::Uint32x3(_) => wgpu::VertexFormat::Uint32x3,
-            ShaderValue::Uint32x4(_) => wgpu::VertexFormat::Uint32x4,
-            ShaderValue::Sint32(_) => wgpu::VertexFormat::Sint32,
-            ShaderValue::Sint32x2(_) => wgpu::VertexFormat::Sint32x2,
-            ShaderValue::Sint32x3(_) => wgpu::VertexFormat::Sint32x3,
-            ShaderValue::Sint32x4(_) => wgpu::VertexFormat::Sint32x4,
+               ShaderValue::Uint32(_) => wgpu::VertexFormat::Uint32,
+             ShaderValue::Uint32x2(_) => wgpu::VertexFormat::Uint32x2,
+             ShaderValue::Uint32x3(_) => wgpu::VertexFormat::Uint32x3,
+             ShaderValue::Uint32x4(_) => wgpu::VertexFormat::Uint32x4,
+               ShaderValue::Sint32(_) => wgpu::VertexFormat::Sint32,
+             ShaderValue::Sint32x2(_) => wgpu::VertexFormat::Sint32x2,
+             ShaderValue::Sint32x3(_) => wgpu::VertexFormat::Sint32x3,
+             ShaderValue::Sint32x4(_) => wgpu::VertexFormat::Sint32x4,
         }
     }
 
@@ -108,36 +108,37 @@ impl ShaderValue {
         self.wgpu_equivalent().size()
     }
 
+    #[rustfmt::skip]
     fn is_same_type(&self, other: &ShaderValue) -> bool {
         match (self, other) {
-            (ShaderValue::Uint8x2(_), ShaderValue::Uint8x2(_))
-            | (ShaderValue::Uint8x4(_), ShaderValue::Uint8x4(_))
-            | (ShaderValue::Sint8x2(_), ShaderValue::Sint8x2(_))
-            | (ShaderValue::Sint8x4(_), ShaderValue::Sint8x4(_))
-            | (ShaderValue::Unorm8x2(_), ShaderValue::Unorm8x2(_))
-            | (ShaderValue::Unorm8x4(_), ShaderValue::Unorm8x4(_))
-            | (ShaderValue::Snorm8x2(_), ShaderValue::Snorm8x2(_))
-            | (ShaderValue::Snorm8x4(_), ShaderValue::Snorm8x4(_))
-            | (ShaderValue::Uint16x2(_), ShaderValue::Uint16x2(_))
-            | (ShaderValue::Uint16x4(_), ShaderValue::Uint16x4(_))
-            | (ShaderValue::Sint16x2(_), ShaderValue::Sint16x2(_))
-            | (ShaderValue::Sint16x4(_), ShaderValue::Sint16x4(_))
+              (  ShaderValue::Uint8x2(_), ShaderValue::Uint8x2(_))
+            | (  ShaderValue::Uint8x4(_), ShaderValue::Uint8x4(_))
+            | (  ShaderValue::Sint8x2(_), ShaderValue::Sint8x2(_))
+            | (  ShaderValue::Sint8x4(_), ShaderValue::Sint8x4(_))
+            | ( ShaderValue::Unorm8x2(_), ShaderValue::Unorm8x2(_))
+            | ( ShaderValue::Unorm8x4(_), ShaderValue::Unorm8x4(_))
+            | ( ShaderValue::Snorm8x2(_), ShaderValue::Snorm8x2(_))
+            | ( ShaderValue::Snorm8x4(_), ShaderValue::Snorm8x4(_))
+            | ( ShaderValue::Uint16x2(_), ShaderValue::Uint16x2(_))
+            | ( ShaderValue::Uint16x4(_), ShaderValue::Uint16x4(_))
+            | ( ShaderValue::Sint16x2(_), ShaderValue::Sint16x2(_))
+            | ( ShaderValue::Sint16x4(_), ShaderValue::Sint16x4(_))
             | (ShaderValue::Unorm16x2(_), ShaderValue::Unorm16x2(_))
             | (ShaderValue::Unorm16x4(_), ShaderValue::Unorm16x4(_))
             | (ShaderValue::Snorm16x2(_), ShaderValue::Snorm16x2(_))
             | (ShaderValue::Snorm16x4(_), ShaderValue::Snorm16x4(_))
-            | (ShaderValue::Float32(_), ShaderValue::Float32(_))
+            | (  ShaderValue::Float32(_), ShaderValue::Float32(_))
             | (ShaderValue::Float32x2(_), ShaderValue::Float32x2(_))
             | (ShaderValue::Float32x3(_), ShaderValue::Float32x3(_))
             | (ShaderValue::Float32x4(_), ShaderValue::Float32x4(_))
-            | (ShaderValue::Uint32(_), ShaderValue::Uint32(_))
-            | (ShaderValue::Uint32x2(_), ShaderValue::Uint32x2(_))
-            | (ShaderValue::Uint32x3(_), ShaderValue::Uint32x3(_))
-            | (ShaderValue::Uint32x4(_), ShaderValue::Uint32x4(_))
-            | (ShaderValue::Sint32(_), ShaderValue::Sint32(_))
-            | (ShaderValue::Sint32x2(_), ShaderValue::Sint32x2(_))
-            | (ShaderValue::Sint32x3(_), ShaderValue::Sint32x3(_))
-            | (ShaderValue::Sint32x4(_), ShaderValue::Sint32x4(_)) => true,
+            | (   ShaderValue::Uint32(_), ShaderValue::Uint32(_))
+            | ( ShaderValue::Uint32x2(_), ShaderValue::Uint32x2(_))
+            | ( ShaderValue::Uint32x3(_), ShaderValue::Uint32x3(_))
+            | ( ShaderValue::Uint32x4(_), ShaderValue::Uint32x4(_))
+            | (   ShaderValue::Sint32(_), ShaderValue::Sint32(_))
+            | ( ShaderValue::Sint32x2(_), ShaderValue::Sint32x2(_))
+            | ( ShaderValue::Sint32x3(_), ShaderValue::Sint32x3(_))
+            | ( ShaderValue::Sint32x4(_), ShaderValue::Sint32x4(_)) => true,
             _ => false,
         }
     }
