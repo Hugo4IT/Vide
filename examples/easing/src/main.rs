@@ -11,20 +11,20 @@ fn main() {
     });
 
     let easing_functions = vec![
-        LINEAR,
-        IN_QUADRATIC,
-        IN_CUBIC,
-        IN_QUARTIC,
-        IN_QUINTIC,
-        IN_EXPONENTIAL,
-        OUT_QUADRATIC,
-        OUT_CUBIC,
-        OUT_QUARTIC,
-        OUT_QUINTIC,
-        OUT_EXPONENTIAL,
-        IN_BACK,
-        OUT_BACK,
-        IN_OUT_BACK,
+        ease::LINEAR,
+        ease::IN_QUADRATIC,
+        ease::IN_CUBIC,
+        ease::IN_QUARTIC,
+        ease::IN_QUINTIC,
+        ease::IN_EXPONENTIAL,
+        ease::OUT_QUADRATIC,
+        ease::OUT_CUBIC,
+        ease::OUT_QUARTIC,
+        ease::OUT_QUINTIC,
+        ease::OUT_EXPONENTIAL,
+        ease::IN_BACK,
+        ease::OUT_BACK,
+        ease::IN_OUT_BACK,
     ];
 
     let rect_size = 600.0 / easing_functions.len() as f32;
@@ -35,7 +35,7 @@ fn main() {
         let y_pos = 400.0 - rect_seperation * i as f32 + rect_size * 0.5;
         video.root().new_clip(0.0..5.0).effect(Rect {
             position: Animation::new(60.0)
-                .keyframe(Abs(0.0), LINEAR, (pos_left, y_pos))
+                .keyframe(Abs(0.0), ease::LINEAR, (pos_left, y_pos))
                 .keyframe(Abs(2.0), easing, (pos_right, y_pos))
                 .hold(0.5)
                 .keyframe(Abs(4.5), easing, (pos_left, y_pos))

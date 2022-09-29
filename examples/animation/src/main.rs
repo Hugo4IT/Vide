@@ -16,30 +16,30 @@ fn main() {
         position: unanimated!((-300.0, 0.0)),
         size: unanimated!((200.0, 150.0)),
         color: Animation::new(60.0)
-            .keyframe(Abs(0.0), LINEAR,         "#da003700")
-            .keyframe(Rel(0.3), OUT_QUADRATIC,  "#da0037")
+            .keyframe(Abs(0.0), ease::LINEAR,         "#da003700")
+            .keyframe(Rel(0.3), ease::OUT_QUADRATIC,  "#da0037")
             .hold(0.3)
-            .keyframe(Rel(0.3), IN_QUADRATIC,   "#00da37")
+            .keyframe(Rel(0.3), ease::IN_QUADRATIC,   "#00da37")
             .build(),
     });
     root.new_clip(1.0..5.0).effect(Rect {
         position: unanimated!((0.0, 0.0)),
         size: unanimated!((200.0, 150.0)),
         color: Animation::new(60.0)
-            .keyframe(Abs(0.0), LINEAR,         "#da003700")
-            .keyframe(Rel(0.3), OUT_QUADRATIC,  "#da0037")
+            .keyframe(Abs(0.0), ease::LINEAR,         "#da003700")
+            .keyframe(Rel(0.3), ease::OUT_QUADRATIC,  "#da0037")
             .hold(0.3)
-            .keyframe(Rel(0.3), IN_QUADRATIC,   "#00da37")
+            .keyframe(Rel(0.3), ease::IN_QUADRATIC,   "#00da37")
             .build(),
     });
     root.new_clip(1.0..5.0).effect(Rect {
         position: unanimated!((300.0, 0.0)),
         size: unanimated!((200.0, 150.0)),
         color: Animation::new(60.0)
-            .keyframe(Abs(0.0), LINEAR,         "#da003700")
-            .keyframe(Rel(0.3), OUT_QUADRATIC,  "#da0037")
+            .keyframe(Abs(0.0), ease::LINEAR,         "#da003700")
+            .keyframe(Rel(0.3), ease::OUT_QUADRATIC,  "#da0037")
             .hold(0.3)
-            .keyframe(Rel(0.3), IN_QUADRATIC,   "#00da37")
+            .keyframe(Rel(0.3), ease::IN_QUADRATIC,   "#00da37")
             .build(),
     });
 

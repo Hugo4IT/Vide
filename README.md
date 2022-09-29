@@ -1,6 +1,13 @@
 # Vide
 
+## Project Structure
 
+- [ ] Source
+  > Video or audio source
+- [ ] Effect
+  > Render pass, can be applied to sources and clips
+- [ ] Clip
+  > Group of sources
 
 ## TODO
 

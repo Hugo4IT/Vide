@@ -108,7 +108,6 @@ impl Effect for RectBackend {
 
         Self {
             mesh,
-
             instances: Vec::new(),
         }
     }

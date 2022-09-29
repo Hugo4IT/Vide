@@ -1,22 +1,42 @@
 use super::animation::Interpolate;
 
+/// Holds RGBA values converted to SRGB color space
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct Color {
+    /// Amount of red in the color
     pub r: f64,
+    /// Amount of green in the color
     pub g: f64,
+    /// Amount of blue in the color
     pub b: f64,
+    /// How opaque this color is, `0.0` is completely transparent, `1.0` is fully opaque
     pub a: f64,
 }
 
 impl Color {
+    /// Opaque white `(255, 255, 255, 255 / #ffffffff)`
     pub const WHITE: Color = Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 };
+    /// Opaque black `(0, 0, 0, 255 / #000000ff)`
     pub const BLACK: Color = Color { r: 0.0, g: 0.0, b: 0.0, a: 1.0 };
-    pub const TRANSPARENT: Color = Color { r: 1.0, g: 1.0, b: 1.0, a: 0.0 };
+    /// Opaque red `(255, 0, 0, 255 / #ff0000ff)`
+    pub const RED: Color = Color { r: 1.0, g: 0.0, b: 0.0, a: 1.0 };
+    /// Opaque green `(0, 255, 0, 255 / #00ff00ff)`
+    pub const GREEN: Color = Color { r: 0.0, g: 1.0, b: 0.0, a: 1.0 };
+    /// Opaque blue `(0, 0, 255, 255 / #0000ffff)`
+    pub const BLUE: Color = Color { r: 0.0, g: 0.0, b: 1.0, a: 1.0 };
+    /// Transparent white `(255, 255, 255 / #ffffff00)`, alias of Color::TRANSPARENT_WHITE
+    pub const TRANSPARENT: Color = Self::TRANSPARENT_WHITE;
+    /// Transparent white `(255, 255, 255 / #ffffff00)`
+    pub const TRANSPARENT_WHITE: Color = Color { r: 1.0, g: 1.0, b: 1.0, a: 0.0 };
+    /// Transparent black `(0, 0, 0, 0 / #00000000)`
+    pub const TRANSPARENT_BLACK: Color = Color { r: 1.0, g: 1.0, b: 1.0, a: 0.0 };
 
+    /// Create a new color from 4 linear components, it will automatically be converted to srgb at runtime
     pub fn new(r: f64, g: f64, b: f64, a: f64) -> Self {
         Self::from_raw(r.powf(2.2), g.powf(2.2), b.powf(2.2), a)
     }
 
+    /// Create a new color from 4 srgb components. Only use this if you know what you're doing, otherwise use [`Color::new`]
     pub const fn from_raw(r: f64, g: f64, b: f64, a: f64) -> Self {
         Self {
             r,
@@ -81,12 +101,30 @@ impl From<&str> for Color {
                 b"black" => Self::BLACK,
                 b"white" => Self::WHITE,
                 b"transparent" => Self::TRANSPARENT,
+                b"transparent white" | b"transparent_white" => Self::TRANSPARENT_WHITE,
+                b"transparent black" | b"transparent_black" => Self::TRANSPARENT_BLACK,
+                b"red" => Self::RED,
+                b"green" => Self::GREEN,
+                b"blue" => Self::BLUE,
                 _ => panic!("Unrecognized color: {}", string),
             }
         }
     }
 }
 
+/// Use this macro if you have a hex color you would like to use. Use
+/// [`rgba8!(r, g, b, a)`] instead if you color isn't fully opaque.
+/// 
+/// ## Example
+/// 
+/// Let's say I want to use the hex color #da0037, I can do that by
+/// writing the red, green and blue components as their hex values:
+/// 
+/// ```
+/// # fn main() {
+/// let the_best_color = rgb8!(0xda, 0x00, 0x37);
+/// # }
+/// ```
 #[macro_export] macro_rules! rgb8 {
     ($r:expr, $g:expr, $b:expr) => {
         {
@@ -96,6 +134,19 @@ impl From<&str> for Color {
     };
 }
 
+/// Use this macro if you have a hex color you would like to use. Use
+/// [`rgb8!(r, g, b)`] instead if you color is fully opaque.
+/// 
+/// ## Example
+/// 
+/// Let's say I want to use the hex color #da0037ee, I can do that by
+/// writing the red, green and blue components as their hex values:
+/// 
+/// ```
+/// # fn main() {
+/// let the_best_color = rgba8!(0xda, 0x00, 0x37, 0xee);
+/// # }
+/// ```
 #[macro_export] macro_rules! rgba8 {
     ($r:expr, $g:expr, $b:expr, $a:expr) => {
         {
