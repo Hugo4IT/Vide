@@ -11,6 +11,7 @@ preview = ["winit"]
 
 [dependencies]
 winit = { version = "0.26.1", optional = true }
+futures-intrusive = "0.5.0"
 bytemuck = "1.9.1"
 pollster = "0.2.5"
 cgmath = "0.18.0"
