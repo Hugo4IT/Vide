@@ -6,4 +6,4 @@ edition = "2021"
 
 [dependencies]
 vide_lib = { path = "../vide_lib", default-features = false }
-ac-ffmpeg = "0.17.4"
+ac-ffmpeg = "0.18.1"
