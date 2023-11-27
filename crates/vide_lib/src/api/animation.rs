@@ -238,11 +238,11 @@ impl<T: Interpolate + Clone + std::fmt::Debug> AnimatedPropertyBuilder<T> {
     }
 
     pub fn keyframe(
-        mut self,
+        &mut self,
         at: KeyframeTiming<impl IntoFrame>,
         easing: EasingFunction,
         state: impl Into<T>,
-    ) -> Self {
+    ) -> &mut Self {
         let frame = match at {
             KeyframeTiming::Abs(at) => at.into_frame(self.fps),
             KeyframeTiming::Rel(at) => {
@@ -262,12 +262,12 @@ impl<T: Interpolate + Clone + std::fmt::Debug> AnimatedPropertyBuilder<T> {
         }
     }
 
-    pub fn push_keyframe(mut self, keyframe: Keyframe<T>) -> Self {
+    pub fn push_keyframe(&mut self, keyframe: Keyframe<T>) -> &mut Self {
         self.keyframes.push(keyframe);
         self
     }
 
-    pub fn hold(self, time: impl IntoFrame) -> Self {
+    pub fn hold(&mut self, time: impl IntoFrame) -> &mut Self {
         let frame = time.into_frame(self.fps);
         let initial = self.initial.as_ref().unwrap();
         let keyframe = if let Some(last) = self.keyframes.last().cloned() {
@@ -287,7 +287,7 @@ impl<T: Interpolate + Clone + std::fmt::Debug> AnimatedPropertyBuilder<T> {
         self.push_keyframe(keyframe)
     }
 
-    pub fn build(self) -> AnimatedProperty<T> {
-        AnimatedProperty::new(self.initial.unwrap(), self.keyframes)
+    pub fn build(&self) -> AnimatedProperty<T> {
+        AnimatedProperty::new(self.initial.to_owned().unwrap(), self.keyframes.to_owned())
     }
 }
