@@ -52,31 +52,31 @@ fn main() {
 
     let root = video.root();
 
-    root.new_clip(0.0..7.0)
-        // .effect(Rect {
-        //     position: unanimated!((0.0, 0.0)),
-        //     size: unanimated!((1920.0, 1080.0)),
-        //     color: Animation::new(60.0)
-        //         .keyframe(Abs(0.0), ease::LINEAR, "#00000000")
-        //         .keyframe(Abs(0.6), ease::LINEAR, "#00000066")
-        //         .hold(5.0)
-        //         .keyframe(Rel(0.6), ease::LINEAR, "#00000000")
-        //         .build(),
-        // })
-        .effect(Rect {
-            position: Animation::new(60.0)
-                .keyframe(Abs(0.0), ease::LINEAR, (0.0, -590.0))
-                .keyframe(Rel(1.0), ease::IN_OUT_QUINTIC, (0.0, 0.0))
-                .build(),
-            size: Animation::new(60.0)
-                .keyframe(Abs(0.0), ease::LINEAR, (100.0, 100.0))
-                .hold(1.0)
-                .keyframe(Rel(0.6), ease::IN_OUT_QUINTIC, (500.0, 128.0))
-                .hold(3.0)
-                .keyframe(Rel(0.6), ease::IN_QUARTIC, (0.0, 164.0))
-                .build(),
-            color: unanimated!("#222222"),
-        });
+    root.new_clip(0.0..7.0).effect(Rect {
+        position: Animation::new(60.0)
+            .keyframe(Abs(0.0), ease::LINEAR, (0.0, -590.0))
+            .keyframe(Rel(1.0), ease::IN_OUT_QUINTIC, (0.0, 0.0))
+            .build(),
+        size: Animation::new(60.0)
+            .keyframe(Abs(0.0), ease::LINEAR, (100.0, 100.0))
+            .hold(1.0)
+            .keyframe(Rel(0.6), ease::IN_OUT_QUINTIC, (500.0, 128.0))
+            .hold(3.0)
+            .keyframe(Rel(0.6), ease::IN_QUARTIC, (0.0, 164.0))
+            .build(),
+        color: unanimated!("#222222"),
+    });
+
+    root.new_clip(0.0..7.0).effect(Rect {
+        position: unanimated!((0.0, 0.0)),
+        size: unanimated!((1920.0, 1080.0)),
+        color: Animation::new(60.0)
+            .keyframe(Abs(0.0), ease::LINEAR, Color::new(0.0, 0.0, 0.0, 0.0))
+            .keyframe(Abs(0.6), ease::LINEAR, "#00000066")
+            .hold(5.0)
+            .keyframe(Rel(0.6), ease::LINEAR, "#00000000")
+            .build(),
+    });
 
     log::info!("Analyzing audio file");
 

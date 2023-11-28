@@ -384,7 +384,7 @@ impl Renderer {
                             r: self.settings.background_color.r,
                             g: self.settings.background_color.g,
                             b: self.settings.background_color.b,
-                            a: self.settings.background_color.a,
+                            a: 1.0,
                         }),
                         store: true,
                     },
