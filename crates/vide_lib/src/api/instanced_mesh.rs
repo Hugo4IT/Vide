@@ -1,10 +1,13 @@
-use std::{sync::MutexGuard, marker::PhantomData};
+use std::{marker::PhantomData, sync::MutexGuard};
 
 use wgpu::util::DeviceExt;
 
 use crate::render::Renderer;
 
-use super::{shader::Shader, mesh::{Vertex, VertexAttributeDescriptor}};
+use super::{
+    mesh::{Vertex, VertexAttributeDescriptor},
+    shader::Shader,
+};
 
 #[derive(Debug)]
 pub struct InstancedMesh<T: VertexAttributeDescriptor> {
@@ -24,7 +27,12 @@ pub struct InstancedMesh<T: VertexAttributeDescriptor> {
 }
 
 impl<T: VertexAttributeDescriptor + bytemuck::Pod + bytemuck::Zeroable> InstancedMesh<T> {
-    pub fn new(renderer: &mut Renderer, vertices: Vec<Vertex>, indices: Option<Vec<u16>>, shader: Shader) -> Self {
+    pub fn new(
+        renderer: &mut Renderer,
+        vertices: Vec<Vertex>,
+        indices: Option<Vec<u16>>,
+        shader: Shader,
+    ) -> Self {
         let device = renderer.wgpu_device();
         let config = renderer.wgpu_config();
 
@@ -37,11 +45,13 @@ impl<T: VertexAttributeDescriptor + bytemuck::Pod + bytemuck::Zeroable> Instance
 
         let (index_buffer, len_indices) = if let Some(indices) = indices.as_ref() {
             (
-                Some(device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Index Buffer"),
-                    contents: bytemuck::cast_slice(&indices[..]),
-                    usage: wgpu::BufferUsages::INDEX,
-                })),
+                Some(
+                    device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("Index Buffer"),
+                        contents: bytemuck::cast_slice(&indices[..]),
+                        usage: wgpu::BufferUsages::INDEX,
+                    }),
+                ),
                 indices.len() as u32,
             )
         } else {
@@ -57,9 +67,7 @@ impl<T: VertexAttributeDescriptor + bytemuck::Pod + bytemuck::Zeroable> Instance
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
-            bind_group_layouts: &[
-                renderer.wgpu_transform_bind_group_layout(),
-            ],
+            bind_group_layouts: &[renderer.wgpu_transform_bind_group_layout()],
             push_constant_ranges: &[],
         });
 
@@ -69,10 +77,7 @@ impl<T: VertexAttributeDescriptor + bytemuck::Pod + bytemuck::Zeroable> Instance
             vertex: wgpu::VertexState {
                 module: &shader.module,
                 entry_point: "vs_main",
-                buffers: &[
-                    Vertex::desc(),
-                    T::desc(),
-                ],
+                buffers: &[Vertex::desc(), T::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader.module,
@@ -94,7 +99,7 @@ impl<T: VertexAttributeDescriptor + bytemuck::Pod + bytemuck::Zeroable> Instance
             },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth32Float,
-                depth_write_enabled: true,
+                depth_write_enabled: false,
                 depth_compare: wgpu::CompareFunction::Less,
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
@@ -122,7 +127,13 @@ impl<T: VertexAttributeDescriptor + bytemuck::Pod + bytemuck::Zeroable> Instance
         }
     }
 
-    pub fn render<'a>(&'a mut self, mut render_pass: MutexGuard<wgpu::RenderPass<'a>>, device: &wgpu::Device, queue: &wgpu::Queue, instances: Vec<T>) {
+    pub fn render<'a>(
+        &'a mut self,
+        mut render_pass: MutexGuard<wgpu::RenderPass<'a>>,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        instances: Vec<T>,
+    ) {
         if self.instance_buffer_len != instances.len() {
             self.instance_buffer_len = instances.len();
             self.instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -132,7 +143,11 @@ impl<T: VertexAttributeDescriptor + bytemuck::Pod + bytemuck::Zeroable> Instance
             });
         }
 
-        queue.write_buffer(&self.instance_buffer, 0, bytemuck::cast_slice(&instances[..]));
+        queue.write_buffer(
+            &self.instance_buffer,
+            0,
+            bytemuck::cast_slice(&instances[..]),
+        );
 
         if let Some(index_buffer) = self.index_buffer.as_ref() {
             render_pass.set_pipeline(&self.pipeline);
