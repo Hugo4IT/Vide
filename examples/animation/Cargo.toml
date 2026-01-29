@@ -6,3 +6,7 @@ edition = "2021"
 [dependencies]
 env_logger = "0.9.0"
 vide = { path = "../../vide" }
+
+
+[target.'cfg(any(target_family = "windows", target_os = "macos", target_os = "linux", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))'.dependencies]
+mimalloc = "0.1"

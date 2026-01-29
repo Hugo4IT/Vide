@@ -1,7 +1,10 @@
 use std::{env::args, time::Duration};
 
 use spectrum_analyzer::{
-    samples_fft_to_spectrum, scaling::scale_to_zero_to_one, windows::hann_window, FrequencyLimit,
+    samples_fft_to_spectrum,
+    scaling::{divide_by_N_sqrt, scale_to_zero_to_one},
+    windows::hann_window,
+    FrequencyLimit,
 };
 use vide::prelude::*;
 
@@ -83,7 +86,7 @@ fn main() {
             &hann_window,
             sample_rate,
             FrequencyLimit::All,
-            Some(&scale_to_zero_to_one),
+            Some(&divide_by_N_sqrt),
         )
         .unwrap();
 
@@ -116,31 +119,31 @@ fn main() {
         });
     }
 
-    root.new_clip(0.0..7.0).effect(Rect {
-        position: unanimated!((0.0, 0.0)),
-        size: unanimated!((1920.0, 1080.0)),
-        color: Animation::new(60.0)
-            .keyframe(Abs(0.0), ease::LINEAR, "#00000000")
-            .keyframe(Abs(0.6), ease::LINEAR, "#00000066")
-            .hold(5.0)
-            .keyframe(Rel(0.6), ease::LINEAR, "#00000000")
-            .build(),
-    });
+    // root.new_clip(0.0..7.0).effect(Rect {
+    //     position: unanimated!((0.0, 0.0)),
+    //     size: unanimated!((1920.0, 1080.0)),
+    //     color: Animation::new(60.0)
+    //         .keyframe(Abs(0.0), ease::LINEAR, "#00000000")
+    //         .keyframe(Abs(0.6), ease::LINEAR, "#00000066")
+    //         .hold(5.0)
+    //         .keyframe(Rel(0.6), ease::LINEAR, "#00000000")
+    //         .build(),
+    // });
 
-    root.new_clip(0.0..7.0).effect(Rect {
-        position: Animation::new(60.0)
-            .keyframe(Abs(0.0), ease::LINEAR, (0.0, -590.0))
-            .keyframe(Rel(1.0), ease::IN_OUT_QUINTIC, (0.0, 0.0))
-            .build(),
-        size: Animation::new(60.0)
-            .keyframe(Abs(0.0), ease::LINEAR, (100.0, 100.0))
-            .hold(1.0)
-            .keyframe(Rel(0.6), ease::IN_OUT_QUINTIC, (500.0, 128.0))
-            .hold(3.0)
-            .keyframe(Rel(0.6), ease::IN_QUARTIC, (0.0, 164.0))
-            .build(),
-        color: unanimated!("#042F2E"),
-    });
+    // root.new_clip(0.0..7.0).effect(Rect {
+    //     position: Animation::new(60.0)
+    //         .keyframe(Abs(0.0), ease::LINEAR, (0.0, -590.0))
+    //         .keyframe(Rel(1.0), ease::IN_OUT_QUINTIC, (0.0, 0.0))
+    //         .build(),
+    //     size: Animation::new(60.0)
+    //         .keyframe(Abs(0.0), ease::LINEAR, (100.0, 100.0))
+    //         .hold(1.0)
+    //         .keyframe(Rel(0.6), ease::IN_OUT_QUINTIC, (500.0, 128.0))
+    //         .hold(3.0)
+    //         .keyframe(Rel(0.6), ease::IN_QUARTIC, (0.0, 164.0))
+    //         .build(),
+    //     color: unanimated!("#042F2E"),
+    // });
 
     video.render(vide::quick_export::to("output.mp4"));
 }

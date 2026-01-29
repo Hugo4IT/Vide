@@ -1,0 +1,6 @@
+[build]
+rustflags = ["-Z", "threads=8"]
+
+
+[env]
+MALLOC_CONF = "thp:always,metadata_thp:always"

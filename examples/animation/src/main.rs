@@ -2,6 +2,17 @@ use std::time::Duration;
 
 use vide::prelude::*;
 
+#[cfg(any(
+    target_family = "windows",
+    target_os = "macos",
+    target_os = "linux",
+    target_os = "freebsd",
+    target_os = "openbsd",
+    target_os = "netbsd"
+))]
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 #[rustfmt::skip]
 fn main() {
     env_logger::init();

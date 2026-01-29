@@ -8,3 +8,20 @@ members = [
     "examples/audio_visualizer",
 ]
 resolver = "2"
+
+
+[profile.dev]
+opt-level = 1
+
+
+[profile.dev.package."*"]
+opt-level = 3
+
+
+[profile.release]
+codegen-units = 1
+opt-level = 3
+lto = "fat"
+strip = true
+panic = "abort"
+debug = 0
